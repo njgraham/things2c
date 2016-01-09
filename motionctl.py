@@ -5,7 +5,7 @@ import datetime
 last_update = None
 last_authorized = None
 
-def main(mk_client, sleep):
+def main(mk_client, sleep, cmd):
     global last_update
     global last_authorized
     
@@ -14,21 +14,23 @@ def main(mk_client, sleep):
     start = datetime.datetime.now()
     while True:
         if (datetime.datetime.now() - (last_update or start)).total_seconds() > 10:
-            print 'Too long since last update - forcing on'
+            # print 'Too long since last update - forcing on'
             start = datetime.datetime.now()
-            ensure_on(client)
+            ensure_on(client, cmd)
         elif last_authorized and (datetime.datetime.now() - last_authorized).total_seconds() < 5:
-            print 'Authorized!'
-            ensure_off(client)
+            # print 'Authorized!'
+            ensure_off(client, cmd)
         else:
-            print 'Not Authorized!'
-            ensure_on(client)
+            # print 'Not Authorized!'
+            ensure_on(client, cmd)
         sleep(5)
 
-def ensure_on(client):
+def ensure_on(client, cmd):
+    cmd('sudo supervisorctl start motion')
     client.publish('/motion/status', 'on')
 
-def ensure_off(client):
+def ensure_off(client, cmd):
+    cmd('sudo supervisorctl stop motion')
     client.publish('/motion/status', 'off')
     
 def on_connect(client, userdata, flags, rc):
@@ -40,7 +42,7 @@ def on_message(client, userdata, msg):
     global last_update
     global last_authorized
 
-    print(msg.topic+" "+str(msg.payload))
+    # print(msg.topic+" "+str(msg.payload))
     if '/nfc/scan' in msg.topic:
         # EEK!  Thread safe?  Prolly not...
         last_update = datetime.datetime.now()
@@ -50,6 +52,7 @@ def on_message(client, userdata, msg):
 def _tcb_():
     import paho.mqtt.client as mqtt
     from time import sleep
+    from os import system
 
     def mk_client(on_connect=None, on_message=None):
         client = mqtt.Client()
@@ -58,7 +61,11 @@ def _tcb_():
         client.connect('numbat', 1883, 60)
         return client
 
-    return dict(mk_client=mk_client, sleep=sleep)
+    def cmd(c):
+        # print c
+        system(c)
+
+    return dict(mk_client=mk_client, sleep=sleep, cmd=cmd)
 
 if __name__ == '__main__':
     main(**_tcb_())
