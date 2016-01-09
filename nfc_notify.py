@@ -12,10 +12,12 @@ def main(mknfc, now, sleep, mk_client):
 
     def connected(tag, id='ac5b72cf-5b0f-4ac1-9ed8-5434f102d4cb'):
         data = tag.ndef.message[0].data[3:] if tag.ndef else None
-        if data == id:
-            print 'Detect authorized nfc!'
+        if data:
             client.reconnect()
             client.publish('/nfc/scan/data', data)
+            if data == id:
+                print 'Detect authorized nfc!'
+                client.publish('/nfc/scan/authorized', data)
 
     while True:
         started = now()
@@ -44,5 +46,5 @@ if __name__ == '__main__':
             clf = nfc.ContactlessFrontend('usb')
             return clf
 
-        return dict(mknfc=mknfc, now=now, sleep=time.sleep, **mqtt())
+        return dict(mknfc=mknfc, now=now, sleep=time.sleep, mk_client=mqtt()['mk_client'])
     main(**__tcb__())
