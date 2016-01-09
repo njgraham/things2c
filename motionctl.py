@@ -25,12 +25,19 @@ def main(mk_client, sleep, cmd):
             ensure_on(client, cmd)
         sleep(5)
 
+def is_on(cmd):
+    if cmd('pgrep -a motion') == 0:
+        return True
+    return False
+    
 def ensure_on(client, cmd):
-    cmd('sudo supervisorctl start motion')
+    if not is_on(cmd):
+        cmd('sudo supervisorctl start motion')
     client.publish('/motion/status', 'on')
 
 def ensure_off(client, cmd):
-    cmd('sudo supervisorctl stop motion')
+    if is_on(cmd):
+        cmd('sudo supervisorctl stop motion')
     client.publish('/motion/status', 'off')
     
 def on_connect(client, userdata, flags, rc):
@@ -63,7 +70,7 @@ def _tcb_():
 
     def cmd(c):
         # print c
-        system(c)
+        return system(c)
 
     return dict(mk_client=mk_client, sleep=sleep, cmd=cmd)
 
