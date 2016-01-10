@@ -17,20 +17,27 @@ def on_message(client, userdata, msg):
             
 
 if __name__ == '__main__':
+    ON_BLINKS = 3
+
     mk_client=mqtt()['mk_client']
     client = mk_client(on_connect=on_connect, on_message=on_message)
     client.loop_start()
 
     def blink(color):
         os.system('blink1-tool --rgb %(color)s --blink 1 > /dev/null' % dict(color=color))
-    
+
+    on_blinks = ON_BLINKS
     while(True):
-        if not status:
-            blink('0x00,0x00,0xff')
-        elif status == 'on':
-            blink('0xff,0x00,0x00')
-        elif status == 'off':
-            blink('0x00,0xff,0x00')
+        if status and status == 'on':
+            if on_blinks:
+                blink('0xff,0x00,0x00')
+                on_blinks -= 1
         else:
-            blink('0xff,0xff,0xff')
+            on_blinks = ON_BLINKS
+            if not status:
+                blink('0x00,0x00,0xff')
+            elif status == 'off':
+                blink('0x00,0xff,0x00')
+            else:
+                blink('0xff,0xff,0xff')
         sleep(2)
