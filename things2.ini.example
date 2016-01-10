@@ -1,0 +1,10 @@
+[broker]
+host=localhost
+port=1883
+
+[pushover]
+user=abcdef123
+token=321fed
+
+[nfc]
+authorized_data = authorized_uuid
