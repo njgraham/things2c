@@ -4,9 +4,12 @@ see https://nfcpy.readthedocs.org
 ln -s ../nfcpy-0.10.2 nfcpy-0.10.2
 '''
 
+
 def main(mknfc, now, sleep, mk_client):
     clf = mknfc()
-    term = lambda: now() - started > 2
+
+    def term():
+        return now() - started > 2
 
     client = mk_client()
 
@@ -26,14 +29,13 @@ def main(mknfc, now, sleep, mk_client):
                     terminate=term)
         sleep(2)
 
-        
 
 if __name__ == '__main__':
     def __tcb__():
         import os
         import sys
         import time
-        
+
         sys.path.insert(1, os.path.join(os.path.split(sys.path[0])[0],
                                         'nfcpy-0.10.2'))
         import nfc
@@ -41,10 +43,11 @@ if __name__ == '__main__':
 
         def now():
             return time.time()
-        
+
         def mknfc():
             clf = nfc.ContactlessFrontend('usb')
             return clf
 
-        return dict(mknfc=mknfc, now=now, sleep=time.sleep, mk_client=mqtt()['mk_client'])
+        return dict(mknfc=mknfc, now=now,
+                    sleep=time.sleep, mk_client=mqtt()['mk_client'])
     main(**__tcb__())
