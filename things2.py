@@ -24,9 +24,20 @@ logging.basicConfig(format='%(asctime)s: %(message)s',
 log = logging.getLogger(__name__)
 
 
-def main(cli):
+def main(cli, cfg):
     if cli.verbose:
         log.setLevel(logging.DEBUG)
+
+    if cli.nfc_scan:
+        raise NotImplementedError()
+    elif cli.motionctl:
+        raise NotImplementedError()
+    elif cli.watchdog:
+        raise NotImplementedError()
+    elif cli.blinkctl:
+        raise NotImplementedError()
+    else:
+        raise NotImplementedError()
 
 if __name__ == '__main__':
     def _tcb_():
@@ -34,8 +45,12 @@ if __name__ == '__main__':
         from docopt import docopt
         from sys import argv
 
+        from config import Config
+
         cli = AttrDict(dict([(i[0].replace('--', ''), i[1])
                              for i in docopt(__doc__, argv=argv[1:]).items()]))
-        return dict(cli=cli)
+        with open(cli.config, 'rb') as cfgin:
+            cfg = Config(cfgin)
+        return dict(cli=cli, cfg=cfg)
     main(**_tcb_())
     
