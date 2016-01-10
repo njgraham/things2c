@@ -19,23 +19,28 @@ def get_topics(topics=TOPICS):
     /motion/
     >>> print t.motion_status_on
     /motion/status/on/
+    >>> print t.motion_status_all
+    /motion/status/#
     '''
     def all_paths(topics):
         paths = []
 
         def ht(dct, paths, parent=''):
             if not dct:
-                return None
+                return False
             for c in dct.keys():
                 np = '/'.join([parent, c])
-                if not ht(dct[c], paths, np):
-                    np += '/'
+                if ht(dct[c], paths, np):
+                    paths.append('/'.join([np, '#']))
+                np += '/'
                 paths.append(np)
+            return True
         ht(topics, paths)
         return paths
     paths = all_paths(topics)
-    return AttrDict(dict(zip([p.strip('/').replace('/', '_')
-                              for p in paths], paths)))
+    return AttrDict(dict(zip(
+        [p.strip('/').replace('/', '_').replace('#', 'all')
+         for p in paths], paths)))
 
 
 def get_config(rd):
