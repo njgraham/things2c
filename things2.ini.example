@@ -12,3 +12,10 @@ scan_poll_sleep = 5
 
 [watchdog]
 timeout_sec=30
+
+[blink]
+sec_between_blinks=2
+motion_unknown_timeout_sec=30
+motion_on_color=0xff,0x00,0x00
+motion_off_color=0x00,0xff,0x00
+motion_unknown_color=0xff,0xff,0xff

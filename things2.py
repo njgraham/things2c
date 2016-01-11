@@ -26,20 +26,46 @@ logging.basicConfig(format='%(asctime)s: %(message)s',
 log = logging.getLogger(__name__)
 
 
-def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep):
+def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now):
     if cli.verbose:
         log.setLevel(logging.DEBUG)
 
     if cli.nfc_scan:
-        nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep)
+        nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, now)
     elif cli.motionctl:
         raise NotImplementedError()
     elif cli.watchdog:
         watchdog(cli, cfg, mk_mqtt, mk_notify)
     elif cli.blinkctl:
-        raise NotImplementedError()
+        blinkctl(cli, cfg, mk_mqtt, blink, sleep, now)
     else:
         raise NotImplementedError()
+
+
+def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
+    q = Queue()
+    mqtt = mk_mqtt(log=log, topics=[cfg.get_topics().motion_status_all],
+                   msg_queue=q)
+    mqtt.loop_start()
+
+    color = cfg.config.blink.motion_unknown_color
+    last_update = None
+    while True:
+        while not q.empty():
+            try:
+                msg = q.get_nowait()
+                last_update = now()
+                if msg.topic == cfg.get_topics().motion_status_on:
+                    color = cfg.config.blink.motion_on_color
+                elif msg.topic == cfg.get_topics().motion_status_off:
+                    color = cfg.config.blink.motion_off_color
+            except Empty:
+                pass
+        if(not last_update or (now() - last_update)
+           > float(config.blink.motion_unknown_timeout_sec)):
+            color = cfg.config.blink.motion_unknown_color
+        blink(color)
+        sleep(float(cfg.config.blink.sec_between_blinks))
 
 
 def nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep):
@@ -76,7 +102,7 @@ if __name__ == '__main__':
     def _tcb_():
         from attrdict import AttrDict
         from docopt import docopt
-        from os import path as ospath
+        from os import path as ospath, system
         from sys import argv, path
         from time import time, sleep
 
@@ -99,6 +125,10 @@ if __name__ == '__main__':
         def now():
             return time()
 
+        def blink(color):
+            system('blink1-tool --rgb %(color)s --blink 1 > /dev/null'
+                   % dict(color=color))
+
         return dict(cli=cli, cfg=cfg,
                     mk_mqtt=partial(MqttClient.make, cfg.config.broker.host,
                                     cfg.config.broker.port),
@@ -108,5 +138,5 @@ if __name__ == '__main__':
                                       token=cfg.config.pushover.token,
                                       user=cfg.config.pushover.user),
                     mk_nfc=partial(NfcInterface.make, nfc=nfc, now=now),
-                    sleep=sleep)
+                    sleep=sleep, blink=blink, now=now)
     main(**_tcb_())
