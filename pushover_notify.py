@@ -11,7 +11,7 @@ def main(mk_pn, msg):
 
 
 class PushoverNotify(object):
-    def __init__(self, log, urlencode, connection, user, token):
+    def __init__(self, urlencode, connection, user, token, log):
         self._log = log
         self._urlencode = urlencode
         self._connection = connection
@@ -19,8 +19,8 @@ class PushoverNotify(object):
         self._token = token
 
     @classmethod
-    def make(cls, log, urlencode, connection, user, token):
-        return PushoverNotify(log, urlencode, connection, user, token)
+    def make(cls, urlencode, connection, user, token, log):
+        return PushoverNotify(urlencode, connection, user, token, log)
 
     def notify(self, msg):
         self._log.info('Pushover: %s' % msg)

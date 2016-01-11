@@ -8,3 +8,6 @@ token=321fed
 
 [nfc]
 authorized_data = authorized_uuid
+
+[watchdog]
+timeout_sec=30
