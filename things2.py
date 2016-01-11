@@ -56,7 +56,8 @@ def nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep):
         log.debug('nfc_scan() sleeping for %s' %
                   cfg.config.nfc.scan_poll_sleep)
         sleep(float(cfg.config.nfc.scan_poll_sleep))
-    
+
+
 def watchdog(cli, cfg, mk_mqtt, mk_notify):
     q = Queue()
     client = mk_mqtt(log=log, topics=[cfg.get_topics().motion_status_all],
@@ -109,4 +110,3 @@ if __name__ == '__main__':
                     mk_nfc=partial(NfcInterface.make, nfc=nfc, now=now),
                     sleep=sleep)
     main(**_tcb_())
-    

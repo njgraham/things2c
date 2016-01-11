@@ -30,6 +30,7 @@ class NfcInterface(object):
 
         data = None
         started = self._now()
+
         def term():
             return self._now() - started > timeout
 
@@ -51,14 +52,12 @@ if __name__ == '__main__':
         from sys import argv, path
         from time import time
         path.insert(1, ospath.join(ospath.split(path[0])[0],
-                                    'nfcpy-0.10.2'))
+                                   'nfcpy-0.10.2'))
         import nfc
 
         def now():
             return time()
-            
+
         return dict(mk_nfc=partial(NfcInterface.make, nfc=nfc, now=now),
                     cmd=argv[1] if argv[1] in ['read', 'write'] else None)
     main(**_tcb_())
-
-    
