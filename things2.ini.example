@@ -8,6 +8,7 @@ token=321fed
 
 [nfc]
 authorized_data = authorized_uuid
+scan_poll_sleep = 5
 
 [watchdog]
 timeout_sec=30

@@ -12,7 +12,7 @@ def main(mk_mqtt_client):
 
 
 class MqttClient(mqtt.Client):
-    def __init__(self, host, port, log, topics, msg_queue=None):
+    def __init__(self, host, port, log, topics=[], msg_queue=None):
         assert(isinstance(topics, list))
         super(MqttClient, self).__init__()
         self._log = log
@@ -25,7 +25,7 @@ class MqttClient(mqtt.Client):
         self.connect(host, port, 60)
 
     @classmethod
-    def make(cls, host, port, log, topics, msg_queue=None):
+    def make(cls, host, port, log, topics=[], msg_queue=None):
         return MqttClient(host, port, log, topics, msg_queue)
 
     def _on_connect(self, client, userdata, flags, rc):
@@ -35,7 +35,8 @@ class MqttClient(mqtt.Client):
             self.subscribe(topic)
 
     def _on_message(self, client, userdata, msg):
-        self._log.debug(msg.topic + " " + str(msg.payload))
+        self._log.debug('mqtt._on_message() ' +
+                        msg.topic + " " + str(msg.payload))
         if self._msg_queue:
             self._msg_queue.put(msg)
 
