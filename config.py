@@ -5,8 +5,8 @@ _topics = {'motion':
            {'status': {'on': None,
                        'off': None}},
            'nfc': {'scan':
-                   {'data': None}}
-           {'info': None}}
+                   {'data': None}},
+           'info': None}
 
 
 class Config(object):

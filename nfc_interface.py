@@ -51,8 +51,10 @@ if __name__ == '__main__':
         from os import path as ospath
         from sys import argv, path
         from time import time
+
+        nfcpy_path = argv[1]
         path.insert(1, ospath.join(ospath.split(path[0])[0],
-                                   'nfcpy-0.10.2'))
+                                   nfcpy_path))
         import nfc
 
         def now():

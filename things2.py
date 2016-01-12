@@ -52,17 +52,20 @@ def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
     mqtt.loop_start()
 
     while True:
-        try:
-            msg = q.get(block=True,
-                        timeout=float(cfg.config.watchdog.scan_timeout_sec))
-            if(msg.topic == cfg.get_topics().nfc_scan_data and
-               msg.data[3:] == cfg.config.motionctl.authorized_id):
-                mqtt.publish(cfg.get_topics().info, 'Authorized scan data')
-                if is_motion_on():
-                    motion_off()
-        except Empty:
-            if not is_motion_on():
-                motion_on()
+        while not q.empty():
+            try:
+                msg = q.get(block=True,
+                            timeout=float(cfg.config.motionctl.scan_timeout_sec))
+                log.debug('motionctl() got %s, %s' % (msg.topic, msg.payload))
+                if(msg.topic == cfg.get_topics().nfc_scan_data and
+                   msg.payload[3:] == cfg.config.motionctl.authorized_id):
+                    mqtt.publish(cfg.get_topics().info, 'Authorized scan data')
+                    if is_motion_on():
+                        motion_off()
+            except Empty:
+                log.debug('motionctl() queue is empty')
+                if not is_motion_on():
+                    motion_on()
         mqtt.publish(cfg.get_topics().motion_status_on if is_motion_on()
                      else cfg.get_topics().motion_status_off)
         sleep(float(cfg.config.motionctl.proc_poll_sleep))
@@ -139,15 +142,15 @@ if __name__ == '__main__':
         from pushover_notify import PushoverNotify
         from urllib import urlencode
 
-        path.insert(1, ospath.join(ospath.split(path[0])[0],
-                                   'nfcpy-0.10.2'))
-        import nfc
-
         cli = AttrDict(dict([(i[0].replace('--', ''), i[1])
                              for i in docopt(__doc__, argv=argv[1:]).items()]))
         with open(cli.config, 'rb') as cfgin:
             cfg = Config(cfgin)
 
+        path.insert(1, ospath.join(ospath.split(path[0])[0],
+                                   cfg.config.nfc.nfcpy_path))
+        import nfc
+            
         def now():
             return time()
 
@@ -175,6 +178,6 @@ if __name__ == '__main__':
                                       token=cfg.config.pushover.token,
                                       user=cfg.config.pushover.user),
                     mk_nfc=partial(NfcInterface.make, nfc=nfc, now=now),
-                    sleep=sleep, blink=blink, now=now, is_motion_on,
-                    motion_on, motion_off)
+                    sleep=sleep, blink=blink, now=now, is_motion_on=is_motion_on,
+                    motion_on=motion_on, motion_off=motion_off)
     main(**_tcb_())
