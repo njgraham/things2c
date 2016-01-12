@@ -35,7 +35,7 @@ def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
         nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, now)
     elif cli.motionctl:
         motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
-                  motion_on, motion_off)
+                  motion_on, motion_off, mk_notify)
     elif cli.watchdog:
         watchdog(cli, cfg, mk_mqtt, mk_notify)
     elif cli.blinkctl:
@@ -45,30 +45,46 @@ def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
 
 
 def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
-              motion_on, motion_off):
+              motion_on, motion_off, mk_notify):
     q = Queue()
     mqtt = mk_mqtt(log=log, topics=[cfg.get_topics().nfc_scan_all],
                    msg_queue=q)
+    notify = mk_notify(log=log)
     mqtt.loop_start()
 
+    last_update = now()
+    last_auth = None
     while True:
-        while not q.empty():
-            try:
-                msg = q.get(block=True,
-                            timeout=float(cfg.config.motionctl.scan_timeout_sec))
-                log.debug('motionctl() got %s, %s' % (msg.topic, msg.payload))
-                if(msg.topic == cfg.get_topics().nfc_scan_data and
-                   msg.payload[3:] == cfg.config.motionctl.authorized_id):
-                    mqtt.publish(cfg.get_topics().info, 'Authorized scan data')
-                    if is_motion_on():
-                        motion_off()
-            except Empty:
-                log.debug('motionctl() queue is empty')
-                if not is_motion_on():
-                    motion_on()
+        try:
+            msg = q.get_nowait()
+            last_update = now()
+            log.debug('motionctl() got %s, %s' % (msg.topic, msg.payload))
+            if(msg.topic == cfg.get_topics().nfc_scan_data and
+               msg.payload[3:] == cfg.config.motionctl.authorized_id):
+                mqtt.publish(cfg.get_topics().info, 'Authorized scan data')
+                last_auth = now()
+                if is_motion_on():
+                    motion_off()
+                    notify.notify('MOTION OFF')
+             
+        except Empty:
+            log.debug('motionctl() queue is empty')
+
+        if(((now() - last_update >
+             float(cfg.config.motionctl.scan_timeout_sec))
+            or
+            ((not last_auth) or now() - last_auth >
+             float(cfg.config.motionctl.auth_timeout_sec)))
+           and not is_motion_on()):
+            log.debug('motionctl() Update/auth timeout exceeded '
+                      'and motion not on - turning on.')                
+            motion_on()
+            notify.notify('MOTION ON')
+
         mqtt.publish(cfg.get_topics().motion_status_on if is_motion_on()
                      else cfg.get_topics().motion_status_off)
-        sleep(float(cfg.config.motionctl.proc_poll_sleep))
+        if q.empty():
+            sleep(float(cfg.config.motionctl.proc_poll_sleep))
 
 
 def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
@@ -159,7 +175,7 @@ if __name__ == '__main__':
                    % dict(color=color))
 
         def is_motion_on():
-            if system('pgrep -a motion') == 0:
+            if system('pgrep -a motion > /dev/null') == 0:
                 return True
             return False
 
