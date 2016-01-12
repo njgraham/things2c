@@ -46,7 +46,7 @@ class NfcInterface(object):
             data = queue.get(block=True, timeout=timeout)
         except Empty:
             data = None
-        
+
         self._log.debug('NFC read() data: %s' % data)
         return data
 
