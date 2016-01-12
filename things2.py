@@ -56,7 +56,8 @@ def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
             log.error('Valid topics are:\n%s' % '\n'.join(valid_topics))
         else:
             mqtt = mk_mqtt(log=log)
-            mqtt.publish(cli.topic, cli.payload if cli.payload else '')
+            mqtt.publish(cfg.get_topics()[cli.topic],
+                         cli.payload if cli.payload else '')
     else:
         raise NotImplementedError()
 
