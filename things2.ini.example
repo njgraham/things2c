@@ -7,7 +7,6 @@ user=abcdef123
 token=321fed
 
 [nfc]
-authorized_data = authorized_uuid
 scan_poll_sleep = 5
 
 [watchdog]
@@ -19,3 +18,8 @@ motion_unknown_timeout_sec=30
 motion_on_color=0xff,0x00,0x00
 motion_off_color=0x00,0xff,0x00
 motion_unknown_color=0xff,0xff,0xff
+
+[motionctl]
+authorized_id=uuid
+scan_timeout_sec=10
+proc_poll_sleep=5

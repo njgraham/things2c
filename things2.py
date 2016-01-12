@@ -26,20 +26,46 @@ logging.basicConfig(format='%(asctime)s: %(message)s',
 log = logging.getLogger(__name__)
 
 
-def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now):
+def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
+         is_motion_on, motion_on, motion_off):
     if cli.verbose:
         log.setLevel(logging.DEBUG)
 
     if cli.nfc_scan:
         nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, now)
     elif cli.motionctl:
-        raise NotImplementedError()
+        motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
+                  motion_on, motion_off)
     elif cli.watchdog:
         watchdog(cli, cfg, mk_mqtt, mk_notify)
     elif cli.blinkctl:
         blinkctl(cli, cfg, mk_mqtt, blink, sleep, now)
     else:
         raise NotImplementedError()
+
+
+def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
+              motion_on, motion_off):
+    q = Queue()
+    mqtt = mk_mqtt(log=log, topics=[cfg.get_topics().nfc_scan_all],
+                   msg_queue=q)
+    mqtt.loop_start()
+
+    while True:
+        try:
+            msg = q.get(block=True,
+                        timeout=float(cfg.config.watchdog.scan_timeout_sec))
+            if(msg.topic == cfg.get_topics().nfc_scan_data and
+               msg.data[3:] == cfg.config.motionctl.authorized_id):
+                mqtt.publish(cfg.get_topics().info, 'Authorized scan data')
+                if is_motion_on():
+                    motion_off()
+        except Empty:
+            if not is_motion_on():
+                motion_on()
+        mqtt.publish(cfg.get_topics().motion_status_on if is_motion_on()
+                     else cfg.get_topics().motion_status_off)
+        sleep(float(cfg.config.motionctl.proc_poll_sleep))
 
 
 def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
@@ -129,6 +155,17 @@ if __name__ == '__main__':
             system('blink1-tool --rgb %(color)s --blink 1 > /dev/null'
                    % dict(color=color))
 
+        def is_motion_on():
+            if system('pgrep -a motion') == 0:
+                return True
+            return False
+
+        def motion_on():
+            system('sudo supervisorctl start motion')
+
+        def motion_off():
+            system('sudo supervisorctl stop motion')
+
         return dict(cli=cli, cfg=cfg,
                     mk_mqtt=partial(MqttClient.make, cfg.config.broker.host,
                                     cfg.config.broker.port),
@@ -138,5 +175,6 @@ if __name__ == '__main__':
                                       token=cfg.config.pushover.token,
                                       user=cfg.config.pushover.user),
                     mk_nfc=partial(NfcInterface.make, nfc=nfc, now=now),
-                    sleep=sleep, blink=blink, now=now)
+                    sleep=sleep, blink=blink, now=now, is_motion_on,
+                    motion_on, motion_off)
     main(**_tcb_())
