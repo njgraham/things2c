@@ -4,17 +4,23 @@ Usage:
   things2 [options] motionctl
   things2 [options] watchdog
   things2 [options] blinkctl
+  things2 [options] notify <notify_text>
+  things2 [options] publish
 
 Sub-commands:
   nfc_scan          NFC scan/report
   motionctl         Control motion sensor
   watchdog          Watchdog for motion control
   blinkctl          Control status blink(1)
+  notify            Send notifications
+  publish           Publish topic/payload to MQ
 
 Options:
   -h --help         Print usage
   -c --config=FILE  Configuration file [default: things2.ini]
   -v --verbose      Verbose/debug output
+  -t --topic=TOPIC  Topic to publish
+  -p --payload=PL   Payload for publish
 """
 import logging
 from functools import partial
@@ -40,6 +46,17 @@ def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
         watchdog(cli, cfg, mk_mqtt, mk_notify)
     elif cli.blinkctl:
         blinkctl(cli, cfg, mk_mqtt, blink, sleep, now)
+    elif cli.notify:
+        notify = mk_notify(log=log)
+        notify.notify(cli.notify_text)
+    elif cli.publish:
+        valid_topics = [vn for vn in
+                        cfg.get_topics().keys() if not vn.endswith('_all')]
+        if not cli.topic or cli.topic not in valid_topics:
+            log.error('Valid topics are:\n%s' % '\n'.join(valid_topics))
+        else:
+            mqtt = mk_mqtt(log=log)
+            mqtt.publish(cli.topic, cli.payload if cli.payload else '')
     else:
         raise NotImplementedError()
 
@@ -173,7 +190,7 @@ if __name__ == '__main__':
         from pushover_notify import PushoverNotify
         from urllib import urlencode
 
-        cli = AttrDict(dict([(i[0].replace('--', ''), i[1])
+        cli = AttrDict(dict([(i[0].replace('--', '').strip('<>'), i[1])
                              for i in docopt(__doc__, argv=argv[1:]).items()]))
         with open(cli.config, 'rb') as cfgin:
             cfg = Config(cfgin)
