@@ -95,6 +95,8 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
 
     color = cfg.config.blink.motion_unknown_color
     last_update = None
+
+    on_count = int(cfg.config.blink.motion_on_blink_count)
     while True:
         while not q.empty():
             try:
@@ -109,7 +111,14 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
         if(not last_update or (now() - last_update)
            > float(cfg.config.blink.motion_unknown_timeout_sec)):
             color = cfg.config.blink.motion_unknown_color
-        blink(color)
+
+        if color == cfg.config.blink.motion_on_color:
+            if on_count > 0:
+                blink(color)
+            on_count = max(on_count - 1, 0)                
+        else:
+            on_count = int(cfg.config.blink.motion_on_blink_count)
+            blink(color)
         sleep(float(cfg.config.blink.sec_between_blinks))
 
 
