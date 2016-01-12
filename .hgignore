@@ -1,0 +1,7 @@
+syntax: glob
+
+# Backup files left behind by the Emacs editor.
+*~
+# Lock files used by the Emacs editor.
+.\#*
+*.pyc
