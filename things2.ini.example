@@ -12,6 +12,7 @@ nfcpy_path=/usr/local/src/nfcpy/trunk
 
 [watchdog]
 timeout_sec=30
+notification_count=1
 
 [blink]
 sec_between_blinks=2

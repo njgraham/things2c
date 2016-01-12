@@ -144,13 +144,19 @@ def watchdog(cli, cfg, mk_mqtt, mk_notify):
                      msg_queue=q)
     notify = mk_notify(log=log)
     client.loop_start()
+
+    notifications = int(cfg.config.watchdog.notification_count)
     while True:
         try:
             msg = q.get(block=True,
                         timeout=float(cfg.config.watchdog.timeout_sec))
             log.debug('%s %s' % (msg.topic, msg.payload))
+            notifications = int(cfg.config.watchdog.notification_count)
         except Empty:
-            notify.notify('MOTION WATCHDOG')
+            log.info('Watchdog!')
+            if notifications:
+                notify.notify('MOTION WATCHDOG')
+            notifications = max(notifications - 1, 0)
 
 if __name__ == '__main__':
     def _tcb_():
