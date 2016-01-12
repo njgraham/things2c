@@ -66,7 +66,7 @@ def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
                 if is_motion_on():
                     motion_off()
                     notify.notify('MOTION OFF')
-             
+
         except Empty:
             log.debug('motionctl() queue is empty')
 
@@ -77,7 +77,7 @@ def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
              float(cfg.config.motionctl.auth_timeout_sec)))
            and not is_motion_on()):
             log.debug('motionctl() Update/auth timeout exceeded '
-                      'and motion not on - turning on.')                
+                      'and motion not on - turning on.')
             motion_on()
             notify.notify('MOTION ON')
 
@@ -115,7 +115,7 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
         if color == cfg.config.blink.motion_on_color:
             if on_count > 0:
                 blink(color)
-            on_count = max(on_count - 1, 0)                
+            on_count = max(on_count - 1, 0)
         else:
             on_count = int(cfg.config.blink.motion_on_blink_count)
             blink(color)
@@ -175,7 +175,7 @@ if __name__ == '__main__':
         path.insert(1, ospath.join(ospath.split(path[0])[0],
                                    cfg.config.nfc.nfcpy_path))
         import nfc
-            
+
         def now():
             return time()
 
@@ -203,6 +203,7 @@ if __name__ == '__main__':
                                       token=cfg.config.pushover.token,
                                       user=cfg.config.pushover.user),
                     mk_nfc=partial(NfcInterface.make, nfc=nfc, now=now),
-                    sleep=sleep, blink=blink, now=now, is_motion_on=is_motion_on,
-                    motion_on=motion_on, motion_off=motion_off)
+                    sleep=sleep, blink=blink, now=now,
+                    is_motion_on=is_motion_on, motion_on=motion_on,
+                    motion_off=motion_off)
     main(**_tcb_())
