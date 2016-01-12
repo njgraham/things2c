@@ -32,7 +32,7 @@ def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
         log.setLevel(logging.DEBUG)
 
     if cli.nfc_scan:
-        nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, now)
+        nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep)
     elif cli.motionctl:
         motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
                   motion_on, motion_off)

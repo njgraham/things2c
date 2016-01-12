@@ -1,4 +1,5 @@
 from functools import partial
+from Queue import Queue, Empty
 
 
 def main(mk_nfc, cmd):
@@ -28,18 +29,24 @@ class NfcInterface(object):
     def read(self, timeout=2):
         self._log.debug('NFC read(), timeout %d' % timeout)
 
-        data = None
+        queue = Queue()
         started = self._now()
 
         def term():
             return self._now() - started > timeout
 
         def connected(tag):
-            data = tag.ndef.message[0].data[3:] if tag.ndef else None
+            self._log.debug('NFC read() connected')
+            data = tag.ndef.message[0].data if tag.ndef else None
+            queue.put(data)
 
         self._clf.connect(rdwr={'on-connect': connected},
                           terminate=term)
-
+        try:
+            data = queue.get(block=True, timeout=timeout)
+        except Empty:
+            data = None
+        
         self._log.debug('NFC read() data: %s' % data)
         return data
 
@@ -61,5 +68,5 @@ if __name__ == '__main__':
             return time()
 
         return dict(mk_nfc=partial(NfcInterface.make, nfc=nfc, now=now),
-                    cmd=argv[1] if argv[1] in ['read', 'write'] else None)
+                    cmd=argv[2] if argv[2] in ['read', 'write'] else None)
     main(**_tcb_())
