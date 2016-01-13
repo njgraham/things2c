@@ -3,7 +3,11 @@ from ConfigParser import SafeConfigParser
 
 _topics = {'motion':
            {'status': {'on': None,
-                       'off': None}},
+                       'off': None},
+            'event': {'start': None,
+                      'end': None},
+            'filesync': {'start': None,
+                         'end': None}},
            'nfc': {'scan':
                    {'data': None}},
            'info': None}
