@@ -7,7 +7,8 @@ _topics = {'motion':
             'event': {'start': None,
                       'end': None},
             'filesync': {'start': None,
-                         'end': None}},
+                         'end': None},
+            'detected': None},
            'nfc': {'scan':
                    {'data': None}},
            'info': None}
