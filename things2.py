@@ -124,6 +124,10 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
                     color = cfg.config.blink.motion_on_color
                 elif msg.topic == cfg.get_topics().motion_status_off:
                     color = cfg.config.blink.motion_off_color
+                elif msg.topic == cfg.get_topics().motion_detected:
+                    color = cfg.config.blink.motion_detected_color
+                elif msg.topic == cfg.get_topics().motion_filesync:
+                    color = cfg.config.blink.motion_filesync_color
             except Empty:
                 pass
         if(not last_update or (now() - last_update)
