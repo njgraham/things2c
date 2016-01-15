@@ -198,7 +198,11 @@ if __name__ == '__main__':
 
         path.insert(1, ospath.join(ospath.split(path[0])[0],
                                    cfg.config.nfc.nfcpy_path))
-        import nfc
+        try:
+            import nfc
+        except:
+            log.warning('Can\'t import nfc!')
+            nfc = None
 
         def now():
             return time()
