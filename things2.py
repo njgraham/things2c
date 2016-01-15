@@ -107,7 +107,7 @@ def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
 
 def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
     q = Queue()
-    mqtt = mk_mqtt(log=log, topics=[cfg.get_topics().motion_status_all],
+    mqtt = mk_mqtt(log=log, topics=[cfg.get_topics().motion_all],
                    msg_queue=q)
     mqtt.loop_start()
 
