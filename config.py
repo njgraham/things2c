@@ -56,7 +56,7 @@ class Config(object):
     def _get_config(self, rd):
         ''' Parse configuration from input stream
         >>> from pkg_resources import resource_stream
-        >>> c = Config(resource_stream(__name__, 'things2.ini.example'))
+        >>> c = Config(resource_stream(__name__, 'things2c.ini.example'))
         >>> 'broker' in c.config.keys()
         True
         >>> c.config.broker.host == 'localhost'

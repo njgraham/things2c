@@ -1,11 +1,11 @@
 """
 Usage:
-  things2 [options] nfc_scan
-  things2 [options] motionctl
-  things2 [options] watchdog
-  things2 [options] blinkctl
-  things2 [options] notify <notify_text>
-  things2 [options] publish
+  things2c [options] nfc_scan
+  things2c [options] motionctl
+  things2c [options] watchdog
+  things2c [options] blinkctl
+  things2c [options] notify <notify_text>
+  things2c [options] publish
 
 Sub-commands:
   nfc_scan          NFC scan/report
@@ -17,7 +17,7 @@ Sub-commands:
 
 Options:
   -h --help         Print usage
-  -c --config=FILE  Configuration file [default: things2.ini]
+  -c --config=FILE  Configuration file [default: things2c.ini]
   -v --verbose      Verbose/debug output
   -t --topic=TOPIC  Topic to publish
   -p --payload=PL   Payload for publish
