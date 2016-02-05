@@ -22,6 +22,7 @@ I do **not** claim this is a serious security appliance.  There are various ways
 * [motion](http://www.lavrsen.dk/foswiki/bin/view/Motion/WebHome)
 * [Mosquitto - An Open Source MQTT Broker](http://mosquitto.org/)
 * [Supervisor: A Process Control System](http://supervisord.org/)
+* [S3cmd: Command Line S3 Client](http://s3tools.org/s3cmd)
 
 ## Cloud Services
 * [Pushover](https://pushover.net/)
