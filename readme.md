@@ -22,5 +22,34 @@ I do **not** claim this is a serious security appliance.  There are various ways
 * [Mosquitto - An Open Source MQTT Broker](http://mosquitto.org/)
 * [Supervisor: A Process Control System](http://supervisord.org/)
 
+# Cloud Services
+* [Pushover](https://pushover.net/)
+* [Amazon S3](https://aws.amazon.com/s3/)
+
 ## Design Diagram
 ![things2c design](https://bytebucket.org/njgraham/things2c/raw/default/design.png)
+
+    :::text
+    $ python things2c.py --help
+    Usage:
+      things2c [options] nfc_scan
+      things2c [options] motionctl
+      things2c [options] watchdog
+      things2c [options] blinkctl
+      things2c [options] notify <notify_text>
+      things2c [options] publish
+
+    Sub-commands:
+      nfc_scan          NFC scan/report
+      motionctl         Control motion sensor
+      watchdog          Watchdog for motion control
+      blinkctl          Control status blink(1)
+      notify            Send notifications
+      publish           Publish topic/payload to MQ
+
+    Options:
+      -h --help         Print usage
+      -c --config=FILE  Configuration file [default: things2c.ini]
+      -v --verbose      Verbose/debug output
+      -t --topic=TOPIC  Topic to publish
+      -p --payload=PL   Payload for publish
