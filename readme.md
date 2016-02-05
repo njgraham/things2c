@@ -30,6 +30,7 @@ I do **not** claim this is a serious security appliance.  There are various ways
 ## Design Diagram
 ![things2c design](https://bytebucket.org/njgraham/things2c/raw/default/design.png)
 
+## Usage
     :::text
     $ python things2c.py --help
     Usage:
@@ -54,3 +55,6 @@ I do **not** claim this is a serious security appliance.  There are various ways
       -v --verbose      Verbose/debug output
       -t --topic=TOPIC  Topic to publish
       -p --payload=PL   Payload for publish
+
+## License for (things2c)[https://bitbucket.org/njgraham/things2c]
+[MIT](https://opensource.org/licenses/MIT)
