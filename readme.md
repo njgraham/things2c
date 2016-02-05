@@ -56,5 +56,5 @@ I do **not** claim this is a serious security appliance.  There are various ways
       -t --topic=TOPIC  Topic to publish
       -p --payload=PL   Payload for publish
 
-## License for (things2c)[https://bitbucket.org/njgraham/things2c]
+## License for [things2c](https://bitbucket.org/njgraham/things2c)
 [MIT](https://opensource.org/licenses/MIT)
