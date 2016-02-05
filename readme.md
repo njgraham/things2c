@@ -13,6 +13,7 @@ I do **not** claim this is a serious security appliance.  There are various ways
 * [Digital Logic NFC RFID USB Stick DL533N](http://www.d-logic.net/nfc-rfid-reader-sdk/products/nfc-usb-stick-dl533n)
 * [blink(1) indicator light](https://blink1.thingm.com/)
 * [Edimax N150 Wi-Fi Nano USB Adapter](http://www.edimax.com/edimax/merchandise/merchandise_detail/data/edimax/global/wireless_adapters_n150/ew-7811un)
+* [Logitec C270 webcam](http://www.logitech.com/en-us/product/hd-webcam-c270)
 
 ## Software
 * [nfcpy - Python module for near field communication](https://nfcpy.readthedocs.org/en/latest/)
