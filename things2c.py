@@ -135,6 +135,14 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
     start_time = now()
     
     cd = defaultdict(lambda: None)
+
+    recent_update = lambda:(
+        now() - (last_update or start_time)
+        < float(cfg.config.blink.motion_unknown_timeout_sec))
+
+    seen_recently = lambda(color): (
+        cd[color] and (now() - cd[color] < float(cfg.config.blink.recent_status_sec)))
+
     while True:
         while not q.empty():
             try:
@@ -151,21 +159,15 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
             except Empty:
                 pass
 
-        cl = list()
-        for c, u in cd.items():
-            if(cd[cfg.config.blink.motion_on_color] and
-               # TODO: Don't hard-code
-               (now() - cd[cfg.config.blink.motion_on_color]) < 10):
-               continue
-            if u and (now() - u) < 30:  # TODO: Don't hard-code
-                if c == cfg.config.blink.motion_on_color:
-                    if now() - (cd[cfg.config.blink.motion_off_color] or
-                                start_time) > 10:
-                        continue
-                cl.append(c)
+        if(recent_update() and
+           seen_recently(cfg.config.blink.motion_off_color)):
+            cl = list()
+            for c, u in cd.items():
+                if u and (now() - u) < float(cfg.config.blink.show_status_sec):
+                    cl.append(c)
 
-        if cl:
-            blink(pattern=mkpattern(colors=(cl) + ['0x00,0x00,0x00']))
+            if cl:
+                blink(pattern=mkpattern(colors=(sorted(cl)) + ['0x00,0x00,0x00']))
         
         sleep(float(cfg.config.blink.sec_between_blinks))
 
@@ -238,8 +240,7 @@ if __name__ == '__main__':
             return time()
 
         def blink(pattern):
-            print pattern
-            system('blink1-tool --playpattern %(pattern)s'# > /dev/null'
+            system('blink1-tool --playpattern %(pattern)s > /dev/null'
                    % dict(pattern=pattern))
 
         def is_motion_on():
