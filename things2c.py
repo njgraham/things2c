@@ -136,10 +136,6 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
     
     cd = defaultdict(lambda: None)
     while True:
-        if(now() - (last_update or start_time)
-           > float(cfg.config.blink.motion_unknown_timeout_sec)):
-            cd[cfg.config.blink.motion_unknown_color] = now()
-
         while not q.empty():
             try:
                 msg = q.get_nowait()
