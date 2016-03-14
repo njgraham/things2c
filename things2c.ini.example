@@ -16,7 +16,6 @@ notification_count=1
 
 [blink]
 sec_between_blinks=2
-motion_unknown_timeout_sec=30
 show_status_sec=30
 recent_status_sec=10
 motion_on_color=0xff,0x00,0x00

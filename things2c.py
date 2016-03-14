@@ -131,14 +131,7 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
                    msg_queue=q)
     mqtt.loop_start()
 
-    last_update = None
-    start_time = now()
-    
     cd = defaultdict(lambda: None)
-
-    recent_update = lambda:(
-        now() - (last_update or start_time)
-        < float(cfg.config.blink.motion_unknown_timeout_sec))
 
     seen_recently = lambda(color): (
         cd[color] and (now() - cd[color] < float(cfg.config.blink.recent_status_sec)))
@@ -159,8 +152,7 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
             except Empty:
                 pass
 
-        if(recent_update() and
-           seen_recently(cfg.config.blink.motion_off_color)):
+        if(seen_recently(cfg.config.blink.motion_off_color)):
             cl = list()
             for c, u in cd.items():
                 if u and (now() - u) < float(cfg.config.blink.show_status_sec):
