@@ -23,6 +23,7 @@ Options:
   -p --payload=PL   Payload for publish
 """
 import logging
+from collections import defaultdict
 from functools import partial
 from Queue import Queue, Empty
 
@@ -104,43 +105,72 @@ def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
         if q.empty():
             sleep(float(cfg.config.motionctl.proc_poll_sleep))
 
+def rgbcnvt(rgb):
+    '''
+    >>> print rgbcnvt('0xff,0x00,0x00')
+    #ff0000
+    '''
+    return '#' + rgb.replace('0x', '').replace(',', '')
 
+def mkpattern(colors, msec=0.4):
+    '''
+    >>> print mkpattern(['0xff,0x00,0xff', '0x00,0xcc,0x00'])
+    '1,#ff00ff,0.2,0,#00cc00,0.2,0'
+    >>> print mkpattern(None)
+    None
+    '''
+    return ("'%s'" % ','.join(['1'] +
+                              [item for sublist in
+                               [[rgbcnvt(c),str(msec),'0']
+                                for c in colors] for item in sublist])
+            if colors else None)
+    
 def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
     q = Queue()
     mqtt = mk_mqtt(log=log, topics=[cfg.get_topics().motion_all],
                    msg_queue=q)
     mqtt.loop_start()
 
-    color = cfg.config.blink.motion_unknown_color
     last_update = None
-
-    on_count = int(cfg.config.blink.motion_on_blink_count)
+    start_time = now()
+    
+    cd = defaultdict(lambda: None)
     while True:
+        if(now() - (last_update or start_time)
+           > float(cfg.config.blink.motion_unknown_timeout_sec)):
+            cd[cfg.config.blink.motion_unknown_color] = now()
+
         while not q.empty():
             try:
                 msg = q.get_nowait()
                 last_update = now()
                 if msg.topic == cfg.get_topics().motion_status_on:
-                    color = cfg.config.blink.motion_on_color
+                    cd[cfg.config.blink.motion_on_color] = now()
                 elif msg.topic == cfg.get_topics().motion_status_off:
-                    color = cfg.config.blink.motion_off_color
+                    cd[cfg.config.blink.motion_off_color] = now()
                 elif msg.topic == cfg.get_topics().motion_detected:
-                    color = cfg.config.blink.motion_detected_color
-                elif msg.topic == cfg.get_topics().motion_filesync:
-                    color = cfg.config.blink.motion_filesync_color
+                    cd[cfg.config.blink.motion_detected_color] = now()
+                elif msg.topic.startswith(cfg.get_topics().motion_filesync):
+                    cd[cfg.config.blink.motion_filesync_color] = now()
             except Empty:
                 pass
-        if(not last_update or (now() - last_update)
-           > float(cfg.config.blink.motion_unknown_timeout_sec)):
-            color = cfg.config.blink.motion_unknown_color
 
-        if color == cfg.config.blink.motion_on_color:
-            if on_count > 0:
-                blink(color)
-            on_count = max(on_count - 1, 0)
-        else:
-            on_count = int(cfg.config.blink.motion_on_blink_count)
-            blink(color)
+        cl = list()
+        for c, u in cd.items():
+            if(cd[cfg.config.blink.motion_on_color] and
+               # TODO: Don't hard-code
+               (now() - cd[cfg.config.blink.motion_on_color]) < 10):
+               continue
+            if u and (now() - u) < 30:  # TODO: Don't hard-code
+                if c == cfg.config.blink.motion_on_color:
+                    if now() - (cd[cfg.config.blink.motion_off_color] or
+                                start_time) > 10:
+                        continue
+                cl.append(c)
+
+        if cl:
+            blink(pattern=mkpattern(colors=(cl) + ['0x00,0x00,0x00']))
+        
         sleep(float(cfg.config.blink.sec_between_blinks))
 
 
@@ -211,9 +241,10 @@ if __name__ == '__main__':
         def now():
             return time()
 
-        def blink(color):
-            system('blink1-tool --rgb %(color)s --blink 1 > /dev/null'
-                   % dict(color=color))
+        def blink(pattern):
+            print pattern
+            system('blink1-tool --playpattern %(pattern)s'# > /dev/null'
+                   % dict(pattern=pattern))
 
         def is_motion_on():
             if system('pgrep -a motion > /dev/null') == 0:
