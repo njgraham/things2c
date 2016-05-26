@@ -90,11 +90,10 @@ def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
             log.debug('motionctl() queue is empty')
 
         if(((now() - last_update >
-             float(cfg.config.motionctl.scan_timeout_sec))
-            or
+             float(cfg.config.motionctl.scan_timeout_sec)) or
             ((not last_auth) or now() - last_auth >
-             float(cfg.config.motionctl.auth_timeout_sec)))
-           and not is_motion_on()):
+             float(cfg.config.motionctl.auth_timeout_sec))) and
+           not is_motion_on()):
             log.debug('motionctl() Update/auth timeout exceeded '
                       'and motion not on - turning on.')
             motion_on()
@@ -105,6 +104,7 @@ def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
         if q.empty():
             sleep(float(cfg.config.motionctl.proc_poll_sleep))
 
+
 def rgbcnvt(rgb):
     '''
     >>> print rgbcnvt('0xff,0x00,0x00')
@@ -112,19 +112,21 @@ def rgbcnvt(rgb):
     '''
     return '#' + rgb.replace('0x', '').replace(',', '')
 
+
 def mkpattern(colors, msec=0.4):
     '''
     >>> print mkpattern(['0xff,0x00,0xff', '0x00,0xcc,0x00'])
-    '1,#ff00ff,0.2,0,#00cc00,0.2,0'
+    '1,#ff00ff,0.4,0,#00cc00,0.4,0'
     >>> print mkpattern(None)
     None
     '''
     return ("'%s'" % ','.join(['1'] +
                               [item for sublist in
-                               [[rgbcnvt(c),str(msec),'0']
+                               [[rgbcnvt(c), str(msec), '0']
                                 for c in colors] for item in sublist])
             if colors else None)
-    
+
+
 def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
     q = Queue()
     mqtt = mk_mqtt(log=log, topics=[cfg.get_topics().motion_all],
@@ -133,14 +135,15 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
 
     cd = defaultdict(lambda: None)
 
-    seen_recently = lambda(color): (
-        cd[color] and (now() - cd[color] < float(cfg.config.blink.recent_status_sec)))
+    def seen_recently(color):
+        return (cd[color] and
+                (now() - cd[color] <
+                 float(cfg.config.blink.recent_status_sec)))
 
     while True:
         while not q.empty():
             try:
                 msg = q.get_nowait()
-                last_update = now()
                 if msg.topic == cfg.get_topics().motion_status_on:
                     cd[cfg.config.blink.motion_on_color] = now()
                 elif msg.topic == cfg.get_topics().motion_status_off:
@@ -159,8 +162,8 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
                     cl.append(c)
 
             if cl:
-                blink(pattern=mkpattern(colors=(sorted(cl)) + ['0x00,0x00,0x00']))
-        
+                blink(pattern=mkpattern(
+                    colors=(sorted(cl)) + ['0x00,0x00,0x00']))
         sleep(float(cfg.config.blink.sec_between_blinks))
 
 
