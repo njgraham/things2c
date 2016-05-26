@@ -23,7 +23,9 @@ Options:
   -p --payload=PL   Payload for publish
 """
 import logging
+from hashlib import sha1
 from collections import defaultdict
+from datetime import timedelta
 from functools import partial
 from Queue import Queue, Empty
 
@@ -39,7 +41,7 @@ def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
         log.setLevel(logging.DEBUG)
 
     if cli.nfc_scan:
-        nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, mk_notify, reboot)
+        nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, mk_notify, reboot, now)
     elif cli.motionctl:
         motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
                   motion_on, motion_off, mk_notify)
@@ -63,6 +65,43 @@ def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
         raise NotImplementedError()
 
 
+def dt_salted_hash(data, dt):
+    '''
+    >>> import datetime as dt
+    >>> dt_salted_hash('mysecretkey', dt.datetime(2016, 1, 1, 0, 0, 0))
+    '35a86879588c32b6299f562ebb70d7926c6e4bc8'
+    '''
+    h = sha1(dt.strftime('%Y%m%d%H%M%S') + data).hexdigest()
+    log.debug('data: %s, dt: %s, hash: %s' % (data, dt, h))
+    return h
+
+
+def authorized(candidate, secret, now, window_sec=30):
+    '''
+    >>> import datetime as dt
+    >>> def now(as_datetime): return dt.datetime(2016, 1, 1, 0, 0, 0)
+    >>> authorized(candidate='35a86879588c32b6299f562ebb70d7926c6e4bc8',
+    ...            secret='mysecretkey', now=now)
+    True
+    >>> authorized(candidate='xxx', secret='mysecretkey', now=now)
+    False
+    '''
+    start = now(as_datetime=True)
+    one_sec = timedelta(seconds=1)
+    # To minimize hash calculations, start at the current time and move
+    # outward one second at a time (0, +1, -1, +2, -2...).
+    for time in [t2 for sublist in (
+            [[start]] + [(start + one_sec * t, start - one_sec * t)
+                         for t in range(1, window_sec + 1)])
+                 for t2 in sublist]:
+        key_hash = dt_salted_hash(secret, time)
+        log.debug('authorized() dt: %s, candidate: %s, key_hash: %s' %
+                  (time, candidate, key_hash))
+        if key_hash == candidate:
+            return True
+    return False
+
+
 def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
               motion_on, motion_off, mk_notify):
     q = Queue()
@@ -79,7 +118,8 @@ def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
             last_update = now()
             log.debug('motionctl() got %s, %s' % (msg.topic, msg.payload))
             if(msg.topic == cfg.get_topics().nfc_scan_data and
-               msg.payload[3:] == cfg.config.motionctl.authorized_id):
+               authorized(msg.payload, cfg.config.motionctl.authorized_id,
+                          now)):
                 mqtt.publish(cfg.get_topics().info, 'Authorized scan data')
                 last_auth = now()
                 if is_motion_on():
@@ -167,7 +207,8 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
         sleep(float(cfg.config.blink.sec_between_blinks))
 
 
-def nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, mk_notify, reboot):
+def nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, mk_notify, reboot,
+             now, padlen=3):
     nfc = None
     mqtt = mk_mqtt(log=log)
     notify = mk_notify(log=log)
@@ -182,13 +223,15 @@ def nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, mk_notify, reboot):
             data = nfc.read()
             fail_count = 0
             log.debug('nfc_scan() data: %s' % data)
-            if data:
+            if data and len(data) > padlen:
                 mqtt.publish(cfg.get_topics().nfc_scan_data,
-                             data)
-        except Exception,e:
+                             dt_salted_hash(data[padlen:],
+                             now(as_datetime=True)))
+        except Exception, e:
             fail_count += 1
             msg = 'nfc_scan() failed! Count is %d' % fail_count
             log.error(msg)
+            log.error(str(e))
             mqtt.publish(cfg.get_topics().info, msg)
             #  TODO: Make fail_count configurable
             if fail_count >= 30:
@@ -225,6 +268,7 @@ def watchdog(cli, cfg, mk_mqtt, mk_notify):
 if __name__ == '__main__':
     def _tcb_():
         from attrdict import AttrDict
+        from datetime import datetime
         from docopt import docopt
         from os import path as ospath, system
         from sys import argv, path
@@ -250,7 +294,9 @@ if __name__ == '__main__':
             log.warning('Can\'t import nfc!')
             nfc = None
 
-        def now():
+        def now(as_datetime=False):
+            if as_datetime:
+                return datetime.now()
             return time()
 
         def blink(pattern):
