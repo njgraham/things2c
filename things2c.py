@@ -36,12 +36,12 @@ log = logging.getLogger(__name__)
 
 
 def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
-         is_motion_on, motion_on, motion_off):
+         is_motion_on, motion_on, motion_off, reboot):
     if cli.verbose:
         log.setLevel(logging.DEBUG)
 
     if cli.nfc_scan:
-        nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, now)
+        nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, mk_notify, reboot, now)
     elif cli.motionctl:
         motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
                   motion_on, motion_off, mk_notify)
@@ -130,11 +130,10 @@ def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
             log.debug('motionctl() queue is empty')
 
         if(((now() - last_update >
-             float(cfg.config.motionctl.scan_timeout_sec))
-            or
+             float(cfg.config.motionctl.scan_timeout_sec)) or
             ((not last_auth) or now() - last_auth >
-             float(cfg.config.motionctl.auth_timeout_sec)))
-           and not is_motion_on()):
+             float(cfg.config.motionctl.auth_timeout_sec))) and
+           not is_motion_on()):
             log.debug('motionctl() Update/auth timeout exceeded '
                       'and motion not on - turning on.')
             motion_on()
@@ -145,12 +144,14 @@ def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
         if q.empty():
             sleep(float(cfg.config.motionctl.proc_poll_sleep))
 
+
 def rgbcnvt(rgb):
     '''
     >>> print rgbcnvt('0xff,0x00,0x00')
     #ff0000
     '''
     return '#' + rgb.replace('0x', '').replace(',', '')
+
 
 def mkpattern(colors, msec=0.4):
     '''
@@ -161,10 +162,11 @@ def mkpattern(colors, msec=0.4):
     '''
     return ("'%s'" % ','.join(['1'] +
                               [item for sublist in
-                               [[rgbcnvt(c),str(msec),'0']
+                               [[rgbcnvt(c), str(msec), '0']
                                 for c in colors] for item in sublist])
             if colors else None)
-    
+
+
 def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
     q = Queue()
     mqtt = mk_mqtt(log=log, topics=[cfg.get_topics().motion_all],
@@ -173,14 +175,15 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
 
     cd = defaultdict(lambda: None)
 
-    seen_recently = lambda(color): (
-        cd[color] and (now() - cd[color] < float(cfg.config.blink.recent_status_sec)))
+    def seen_recently(color):
+        return (cd[color] and
+                (now() - cd[color] <
+                 float(cfg.config.blink.recent_status_sec)))
 
     while True:
         while not q.empty():
             try:
                 msg = q.get_nowait()
-                last_update = now()
                 if msg.topic == cfg.get_topics().motion_status_on:
                     cd[cfg.config.blink.motion_on_color] = now()
                 elif msg.topic == cfg.get_topics().motion_status_off:
@@ -199,24 +202,44 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
                     cl.append(c)
 
             if cl:
-                blink(pattern=mkpattern(colors=(sorted(cl)) + ['0x00,0x00,0x00']))
-        
+                blink(pattern=mkpattern(
+                    colors=(sorted(cl)) + ['0x00,0x00,0x00']))
         sleep(float(cfg.config.blink.sec_between_blinks))
 
 
-def nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, now, padlen=3):
-    nfc = mk_nfc(log=log)
+def nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, mk_notify, reboot,
+             now, padlen=3):
+    nfc = None
     mqtt = mk_mqtt(log=log)
+    notify = mk_notify(log=log)
+
+    fail_count = 0
     while True:
         log.debug('nfc_scan()')
         mqtt.publish(cfg.get_topics().nfc_scan)
-        data = nfc.read()
-        log.debug('nfc_scan() data: %s' % data)
-        log.debug(data[padlen:])
-        log.debug(dt_salted_hash(data[padlen:], now(as_datetime=True)))
-        if data and len(data) > padlen:
-            mqtt.publish(cfg.get_topics().nfc_scan_data,
-                         dt_salted_hash(data[padlen:], now(as_datetime=True)))
+        try:
+            if not nfc:
+                nfc = mk_nfc(log=log)
+            data = nfc.read()
+            fail_count = 0
+            log.debug('nfc_scan() data: %s' % data)
+            if data and len(data) > padlen:
+                mqtt.publish(cfg.get_topics().nfc_scan_data,
+                             dt_salted_hash(data[padlen:],
+                             now(as_datetime=True)))
+        except Exception, e:
+            fail_count += 1
+            msg = 'nfc_scan() failed! Count is %d' % fail_count
+            log.error(msg)
+            log.error(str(e))
+            mqtt.publish(cfg.get_topics().info, msg)
+            #  TODO: Make fail_count configurable
+            if fail_count >= 30:
+                msg = 'nfc_scan() scanner is stuck - rebooting!'
+                log.error(msg)
+                mqtt.publish(cfg.get_topics().info, msg)
+                notify.notify(msg)
+                reboot()
         log.debug('nfc_scan() sleeping for %s' %
                   cfg.config.nfc.scan_poll_sleep)
         sleep(float(cfg.config.nfc.scan_poll_sleep))
@@ -271,7 +294,7 @@ if __name__ == '__main__':
             log.warning('Can\'t import nfc!')
             nfc = None
 
-        def now(as_datetime=False):   
+        def now(as_datetime=False):
             if as_datetime:
                 return datetime.now()
             return time()
@@ -291,6 +314,9 @@ if __name__ == '__main__':
         def motion_off():
             system('sudo supervisorctl stop motion')
 
+        def reboot():
+            system('sudo /sbin/reboot')
+
         return dict(cli=cli, cfg=cfg,
                     mk_mqtt=partial(MqttClient.make, cfg.config.broker.host,
                                     cfg.config.broker.port),
@@ -302,5 +328,5 @@ if __name__ == '__main__':
                     mk_nfc=partial(NfcInterface.make, nfc=nfc, now=now),
                     sleep=sleep, blink=blink, now=now,
                     is_motion_on=is_motion_on, motion_on=motion_on,
-                    motion_off=motion_off)
+                    motion_off=motion_off, reboot=reboot)
     main(**_tcb_())

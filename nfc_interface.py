@@ -40,8 +40,11 @@ class NfcInterface(object):
             data = tag.ndef.message[0].data if tag.ndef else None
             queue.put(data)
 
-        self._clf.connect(rdwr={'on-connect': connected},
-                          terminate=term)
+        constat = self._clf.connect(rdwr={'on-connect': connected},
+                                    terminate=term)
+        if constat == False:
+            raise IOError('Connect returned False')
+
         try:
             data = queue.get(block=True, timeout=timeout)
         except Empty:
