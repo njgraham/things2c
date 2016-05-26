@@ -34,12 +34,12 @@ log = logging.getLogger(__name__)
 
 
 def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
-         is_motion_on, motion_on, motion_off):
+         is_motion_on, motion_on, motion_off, reboot):
     if cli.verbose:
         log.setLevel(logging.DEBUG)
 
     if cli.nfc_scan:
-        nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep)
+        nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, mk_notify, reboot)
     elif cli.motionctl:
         motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
                   motion_on, motion_off, mk_notify)
@@ -167,17 +167,36 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
         sleep(float(cfg.config.blink.sec_between_blinks))
 
 
-def nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep):
-    nfc = mk_nfc(log=log)
+def nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, mk_notify, reboot):
+    nfc = None
     mqtt = mk_mqtt(log=log)
+    notify = mk_notify(log=log)
+
+    fail_count = 0
     while True:
         log.debug('nfc_scan()')
         mqtt.publish(cfg.get_topics().nfc_scan)
-        data = nfc.read()
-        log.debug('nfc_scan() data: %s' % data)
-        if data:
-            mqtt.publish(cfg.get_topics().nfc_scan_data,
-                         data)
+        try:
+            if not nfc:
+                nfc = mk_nfc(log=log)
+            data = nfc.read()
+            fail_count = 0
+            log.debug('nfc_scan() data: %s' % data)
+            if data:
+                mqtt.publish(cfg.get_topics().nfc_scan_data,
+                             data)
+        except Exception,e:
+            fail_count += 1
+            msg = 'nfc_scan() failed! Count is %d' % fail_count
+            log.error(msg)
+            mqtt.publish(cfg.get_topics().info, msg)
+            #  TODO: Make fail_count configurable
+            if fail_count >= 30:
+                msg = 'nfc_scan() scanner is stuck - rebooting!'
+                log.error(msg)
+                mqtt.publish(cfg.get_topics().info, msg)
+                notify.notify(msg)
+                reboot()
         log.debug('nfc_scan() sleeping for %s' %
                   cfg.config.nfc.scan_poll_sleep)
         sleep(float(cfg.config.nfc.scan_poll_sleep))
@@ -249,6 +268,9 @@ if __name__ == '__main__':
         def motion_off():
             system('sudo supervisorctl stop motion')
 
+        def reboot():
+            system('sudo /sbin/reboot')
+
         return dict(cli=cli, cfg=cfg,
                     mk_mqtt=partial(MqttClient.make, cfg.config.broker.host,
                                     cfg.config.broker.port),
@@ -260,5 +282,5 @@ if __name__ == '__main__':
                     mk_nfc=partial(NfcInterface.make, nfc=nfc, now=now),
                     sleep=sleep, blink=blink, now=now,
                     is_motion_on=is_motion_on, motion_on=motion_on,
-                    motion_off=motion_off)
+                    motion_off=motion_off, reboot=reboot)
     main(**_tcb_())
