@@ -115,7 +115,7 @@ def rgbcnvt(rgb):
 def mkpattern(colors, msec=0.4):
     '''
     >>> print mkpattern(['0xff,0x00,0xff', '0x00,0xcc,0x00'])
-    '1,#ff00ff,0.2,0,#00cc00,0.2,0'
+    '1,#ff00ff,0.4,0,#00cc00,0.4,0'
     >>> print mkpattern(None)
     None
     '''
