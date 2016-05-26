@@ -71,24 +71,33 @@ def dt_salted_hash(data, dt):
     >>> dt_salted_hash('mysecretkey', dt.datetime(2016, 1, 1, 0, 0, 0))
     '35a86879588c32b6299f562ebb70d7926c6e4bc8'
     '''
-    return sha1(dt.strftime('%Y%m%d%H%M%S') + data).hexdigest()
+    h = sha1(dt.strftime('%Y%m%d%H%M%S') + data).hexdigest()
+    log.debug('data: %s, dt: %s, hash: %s' % (data, dt, h))
+    return h
 
 
-def authorized(candidate, secret, now, window_sec=1):
+def authorized(candidate, secret, now, window_sec=30):
     '''
     >>> import datetime as dt
-    >>> def now(): return dt.datetime(2016, 1, 1, 0, 0, 0)
+    >>> def now(as_datetime): return dt.datetime(2016, 1, 1, 0, 0, 0)
     >>> authorized(candidate='35a86879588c32b6299f562ebb70d7926c6e4bc8',
     ...            secret='mysecretkey', now=now)
     True
     >>> authorized(candidate='xxx', secret='mysecretkey', now=now)
     False
     '''
-    start = now()
+    start = now(as_datetime=True)
     one_sec = timedelta(seconds=1)
-    for time in [start + one_sec * t
-                 for t in range(window_sec * -1, window_sec + 1)]:
-        if dt_salted_hash(secret, time) == candidate:
+    # To minimize hash calculations, start at the current time and move
+    # outward one second at a time (0, +1, -1, +2, -2...).
+    for time in [t2 for sublist in (
+            [[start]] + [(start + one_sec * t, start - one_sec * t)
+                         for t in range(1, window_sec + 1)])
+                 for t2 in sublist]:
+        key_hash = dt_salted_hash(secret, time)
+        log.debug('authorized() dt: %s, candidate: %s, key_hash: %s' %
+                  (time, candidate, key_hash))
+        if key_hash == candidate:
             return True
     return False
 
@@ -203,9 +212,11 @@ def nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, now, padlen=3):
         mqtt.publish(cfg.get_topics().nfc_scan)
         data = nfc.read()
         log.debug('nfc_scan() data: %s' % data)
+        log.debug(data[padlen:])
+        log.debug(dt_salted_hash(data[padlen:], now(as_datetime=True)))
         if data and len(data) > padlen:
             mqtt.publish(cfg.get_topics().nfc_scan_data,
-                         dt_salted_hash(data[padlen:], now()))
+                         dt_salted_hash(data[padlen:], now(as_datetime=True)))
         log.debug('nfc_scan() sleeping for %s' %
                   cfg.config.nfc.scan_poll_sleep)
         sleep(float(cfg.config.nfc.scan_poll_sleep))
@@ -234,6 +245,7 @@ def watchdog(cli, cfg, mk_mqtt, mk_notify):
 if __name__ == '__main__':
     def _tcb_():
         from attrdict import AttrDict
+        from datetime import datetime
         from docopt import docopt
         from os import path as ospath, system
         from sys import argv, path
@@ -259,7 +271,9 @@ if __name__ == '__main__':
             log.warning('Can\'t import nfc!')
             nfc = None
 
-        def now():
+        def now(as_datetime=False):   
+            if as_datetime:
+                return datetime.now()
             return time()
 
         def blink(pattern):
