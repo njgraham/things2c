@@ -23,7 +23,9 @@ Options:
   -p --payload=PL   Payload for publish
 """
 import logging
+from hashlib import sha1
 from collections import defaultdict
+from datetime import timedelta
 from functools import partial
 from Queue import Queue, Empty
 
@@ -39,7 +41,7 @@ def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
         log.setLevel(logging.DEBUG)
 
     if cli.nfc_scan:
-        nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep)
+        nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, now)
     elif cli.motionctl:
         motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
                   motion_on, motion_off, mk_notify)
@@ -63,6 +65,34 @@ def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
         raise NotImplementedError()
 
 
+def dt_salted_hash(data, dt):
+    '''
+    >>> import datetime as dt
+    >>> dt_salted_hash('mysecretkey', dt.datetime(2016, 1, 1, 0, 0, 0))
+    '35a86879588c32b6299f562ebb70d7926c6e4bc8'
+    '''
+    return sha1(dt.strftime('%Y%m%d%H%M%S') + data).hexdigest()
+
+
+def authorized(candidate, secret, now, window_sec=1):
+    '''
+    >>> import datetime as dt
+    >>> def now(): return dt.datetime(2016, 1, 1, 0, 0, 0)
+    >>> authorized(candidate='35a86879588c32b6299f562ebb70d7926c6e4bc8',
+    ...            secret='mysecretkey', now=now)
+    True
+    >>> authorized(candidate='xxx', secret='mysecretkey', now=now)
+    False
+    '''
+    start = now()
+    one_sec = timedelta(seconds=1)
+    for time in [start + one_sec * t
+                 for t in range(window_sec * -1, window_sec + 1)]:
+        if dt_salted_hash(secret, time) == candidate:
+            return True
+    return False
+
+
 def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
               motion_on, motion_off, mk_notify):
     q = Queue()
@@ -79,7 +109,8 @@ def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
             last_update = now()
             log.debug('motionctl() got %s, %s' % (msg.topic, msg.payload))
             if(msg.topic == cfg.get_topics().nfc_scan_data and
-               msg.payload[3:] == cfg.config.motionctl.authorized_id):
+               authorized(msg.payload, cfg.config.motionctl.authorized_id,
+                          now)):
                 mqtt.publish(cfg.get_topics().info, 'Authorized scan data')
                 last_auth = now()
                 if is_motion_on():
@@ -164,7 +195,7 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
         sleep(float(cfg.config.blink.sec_between_blinks))
 
 
-def nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep):
+def nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep, now, padlen=3):
     nfc = mk_nfc(log=log)
     mqtt = mk_mqtt(log=log)
     while True:
@@ -172,9 +203,9 @@ def nfc_scan(cli, cfg, mk_mqtt, mk_nfc, sleep):
         mqtt.publish(cfg.get_topics().nfc_scan)
         data = nfc.read()
         log.debug('nfc_scan() data: %s' % data)
-        if data:
+        if data and len(data) > padlen:
             mqtt.publish(cfg.get_topics().nfc_scan_data,
-                         data)
+                         dt_salted_hash(data[padlen:], now()))
         log.debug('nfc_scan() sleeping for %s' %
                   cfg.config.nfc.scan_poll_sleep)
         sleep(float(cfg.config.nfc.scan_poll_sleep))
