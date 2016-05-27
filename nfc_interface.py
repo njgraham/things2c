@@ -20,6 +20,7 @@ class NfcInterface(object):
     def __init__(self, nfc, now, log):
         self._log = log
         self._clf = nfc.ContactlessFrontend('usb')
+        self._nfc = nfc
         self._now = now
 
     @classmethod
@@ -42,7 +43,7 @@ class NfcInterface(object):
 
         constat = self._clf.connect(rdwr={'on-connect': connected},
                                     terminate=term)
-        if constat == False:
+        if constat is False:
             raise IOError('Connect returned False')
 
         try:
@@ -53,8 +54,21 @@ class NfcInterface(object):
         self._log.debug('NFC read() data: %s' % data)
         return data
 
-    def write(self):
-        raise NotImplementedError()
+    def write(self, data, timeout=2):
+        started = self._now()
+
+        def term():
+            return self._now() - started > timeout
+
+        def connected(tag):
+            self._log.debug('NFC write() connected')
+
+        tag = self._clf.connect(rdwr={'on-connect': connected},
+                                terminate=term)
+
+        msg = self._nfc.ndef.TextRecord()
+        msg.text = data
+        tag.ndef.message = self._nfc.ndef.Message(msg)
 
 if __name__ == '__main__':
     def _tcb_():
