@@ -6,6 +6,7 @@ Usage:
   things2c [options] blinkctl
   things2c [options] notify <notify_text>
   things2c [options] publish
+  things2c [options] snoop
 
 Sub-commands:
   nfc_scan          NFC scan/report
@@ -14,6 +15,7 @@ Sub-commands:
   blinkctl          Control status blink(1)
   notify            Send notifications
   publish           Publish topic/payload to MQ
+  snoop             Output all MQTT traffic
 
 Options:
   -h --help         Print usage
@@ -61,8 +63,24 @@ def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
             mqtt = mk_mqtt(log=log)
             mqtt.publish(cfg.get_topics()[cli.topic],
                          cli.payload if cli.payload else '')
+    elif cli.snoop:
+        snoop(cli, mk_mqtt)
     else:
         raise NotImplementedError()
+
+
+def snoop(cli, mk_mqtt):
+    q = Queue()
+    mqtt = mk_mqtt(log=log, topics=['/#'], msg_queue=q)
+    mqtt.loop_start()
+    while True:
+        try:
+            msg = q.get(block=True, timeout=1)
+            if msg:
+                log.info('%s%s' % (msg.topic, ', %s' %
+                                   msg.payload if msg.payload else ''))
+        except Empty:
+            pass
 
 
 def dt_salted_hash(data, dt):
