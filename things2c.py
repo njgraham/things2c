@@ -23,6 +23,7 @@ Options:
   -v --verbose      Verbose/debug output
   -t --topic=TOPIC  Topic to publish
   -p --payload=PL   Payload for publish
+  -e --encode       Encode payload
 """
 import logging
 from hashlib import sha1
@@ -61,8 +62,15 @@ def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
             log.error('Valid topics are:\n%s' % '\n'.join(valid_topics))
         else:
             mqtt = mk_mqtt(log=log)
-            mqtt.publish(cfg.get_topics()[cli.topic],
-                         cli.payload if cli.payload else '')
+            if cli.payload:
+                if cli.encode:
+                    payload = dt_salted_hash(cli.payload,
+                                             now(as_datetime=True))
+                else:
+                    payload = cli.payload
+            else:
+                payload = ''
+            mqtt.publish(cfg.get_topics()[cli.topic], payload)
     elif cli.snoop:
         snoop(cli, mk_mqtt)
     else:
@@ -191,37 +199,46 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
                    msg_queue=q)
     mqtt.loop_start()
 
-    cd = defaultdict(lambda: None)
+    last_seen_topics = defaultdict(lambda: None)
 
-    def seen_recently(color):
-        return (cd[color] and
-                (now() - cd[color] <
+    def seen_recently(topic):
+        return (last_seen_topics[topic] and
+                (now() - last_seen_topics[topic] <
                  float(cfg.config.blink.recent_status_sec)))
 
+    def topic_to_color(topic):
+        t2c = dict([(cfg.get_topics().motion_status_on,
+                     cfg.config.blink.motion_on_color),
+                    (cfg.get_topics().motion_status_off,
+                     cfg.config.blink.motion_off_color),
+                    (cfg.get_topics().motion_detected,
+                     cfg.config.blink.motion_detected_color)])
+        if topic in t2c.keys():
+            return t2c[topic]
+        elif topic.startswith(cfg.get_topics().motion_filesync):
+            return cfg.config.blink.motion_filesync_color
+        return None
+
     while True:
+        # Get all the messages pending - keep track of when we found them
         while not q.empty():
             try:
                 msg = q.get_nowait()
-                if msg.topic == cfg.get_topics().motion_status_on:
-                    cd[cfg.config.blink.motion_on_color] = now()
-                elif msg.topic == cfg.get_topics().motion_status_off:
-                    cd[cfg.config.blink.motion_off_color] = now()
-                elif msg.topic == cfg.get_topics().motion_detected:
-                    cd[cfg.config.blink.motion_detected_color] = now()
-                elif msg.topic.startswith(cfg.get_topics().motion_filesync):
-                    cd[cfg.config.blink.motion_filesync_color] = now()
+                last_seen_topics[msg.topic] = now()
             except Empty:
                 pass
 
-        if(seen_recently(cfg.config.blink.motion_off_color)):
-            cl = list()
-            for c, u in cd.items():
-                if u and (now() - u) < float(cfg.config.blink.show_status_sec):
-                    cl.append(c)
-
-            if cl:
+        # If motion is currently off, blink recent status
+        if(seen_recently(cfg.get_topics().motion_status_off)):
+            colors = list()
+            for topic, last_seen in last_seen_topics.items():
+                if(last_seen and (now() - last_seen) <
+                   float(cfg.config.blink.show_status_sec)):
+                    colors.append(topic_to_color(topic))
+            if colors:
                 blink(pattern=mkpattern(
-                    colors=(sorted(cl)) + ['0x00,0x00,0x00']))
+                    colors=(sorted([c for c in colors if c])) +
+                    ['0x00,0x00,0x00']))
         sleep(float(cfg.config.blink.sec_between_blinks))
 
 
