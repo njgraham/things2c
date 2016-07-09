@@ -41,6 +41,7 @@ I do **not** claim this is a serious security appliance.  There are various ways
       things2c [options] blinkctl
       things2c [options] notify <notify_text>
       things2c [options] publish
+      things2c [options] snoop
 
     Sub-commands:
       nfc_scan          NFC scan/report
@@ -49,6 +50,7 @@ I do **not** claim this is a serious security appliance.  There are various ways
       blinkctl          Control status blink(1)
       notify            Send notifications
       publish           Publish topic/payload to MQ
+      snoop             Output all MQTT traffic
 
     Options:
       -h --help         Print usage
@@ -56,6 +58,7 @@ I do **not** claim this is a serious security appliance.  There are various ways
       -v --verbose      Verbose/debug output
       -t --topic=TOPIC  Topic to publish
       -p --payload=PL   Payload for publish
+      -e --encode       Encode payload
 
 ## License for [things2c](https://bitbucket.org/njgraham/things2c)
 [MIT](https://opensource.org/licenses/MIT)
