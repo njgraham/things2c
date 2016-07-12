@@ -60,5 +60,16 @@ I do **not** claim this is a serious security appliance.  There are various ways
       -p --payload=PL   Payload for publish
       -e --encode       Encode payload
 
+## Build Notes
+To build using [pyinstaller](http://pythonhosted.org/PyInstaller), I did something like the following:
+
+    :::text
+    $ pyinstaller.py -p <path to nfcpy>/trunk --hidden-import nfc.clf.pn533 --onefile ./things2c.py
+
+To build the pyinstaller bootloader, I took a hints from "[pyinstaller missing linux-32bit-arm](https://www.raspberrypi.org/forums/viewtopic.php?f=28&t=79132)" on raspberrypi.org and "[building the pyinstaller bootloader for linux](https://pythonhosted.org/PyInstaller/bootloader-building.html#building-for-linux)" instructions:
+
+    :::text
+    $ python ./waf configure --no-lsb all
+
 ## License for [things2c](https://bitbucket.org/njgraham/things2c)
 [MIT](https://opensource.org/licenses/MIT)
