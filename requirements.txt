@@ -1,3 +1,5 @@
 docopt
 attrdict
 paho-mqtt
+pyserial
+libusb1

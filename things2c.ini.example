@@ -8,7 +8,6 @@ token=321fed
 
 [nfc]
 scan_poll_sleep = 5
-nfcpy_path=/usr/local/src/nfcpy/trunk
 
 [watchdog]
 timeout_sec=30

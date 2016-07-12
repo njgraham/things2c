@@ -19,7 +19,7 @@ Sub-commands:
 
 Options:
   -h --help         Print usage
-  -c --config=FILE  Configuration file [default: things2c.ini]
+  -c --config=FILE  Configuration file [default: /etc/things2c/things2c.ini]
   -v --verbose      Verbose/debug output
   -t --topic=TOPIC  Topic to publish
   -p --payload=PL   Payload for publish
@@ -302,11 +302,12 @@ def watchdog(cli, cfg, mk_mqtt, mk_notify):
 
 if __name__ == '__main__':
     def _tcb_():
+        import nfc
         from attrdict import AttrDict
         from datetime import datetime
         from docopt import docopt
-        from os import path as ospath, system
-        from sys import argv, path
+        from os import system
+        from sys import argv
         from time import time, sleep
 
         from config import Config
@@ -320,14 +321,6 @@ if __name__ == '__main__':
                              for i in docopt(__doc__, argv=argv[1:]).items()]))
         with open(cli.config, 'rb') as cfgin:
             cfg = Config(cfgin)
-
-        path.insert(1, ospath.join(ospath.split(path[0])[0],
-                                   cfg.config.nfc.nfcpy_path))
-        try:
-            import nfc
-        except:
-            log.warning('Can\'t import nfc!')
-            nfc = None
 
         def now(as_datetime=False):
             if as_datetime:
