@@ -1,0 +1,86 @@
+---
+- hosts: all
+  become: yes
+  tasks:
+  - name: Add things2c user
+    user: name=things2c createhome=no system=yes shell=/bin/false groups=things2c,plugdev
+  - name: Install things2c binary
+    copy: src=./things2c dest=/usr/local/bin owner=root group=root mode=0755
+  - name: Make things2c configuration directory
+    file: path=/etc/things2c state=directory owner=root group=root mode=0755
+  - name: Configure things2c
+    copy: src=./things2c.ini dest=/etc/things2c/ owner=things2c group=motion mode=0640
+  - name: Install supervisor
+    apt: name=supervisor
+- hosts: nfc_scan
+  become: yes
+  tasks:
+  - name: Make sure the things2c user can reboot if needed
+    lineinfile: "dest=/etc/sudoers line='things2c ALL=(root) NOPASSWD: /sbin/reboot'"
+  - name: Blacklist pn533
+    copy: src=./blacklist-nfc.conf dest=/etc/modprobe.d/
+  - name: Remove pn533
+    shell: modprobe -r pn533 
+  - name: Copy udev rules for NFC scanner
+    copy: src=./nfcdev.rules dest=/etc/udev/rules.d/
+  - name: Reload udev rules for NFC scanner
+    shell: udevadm control --reload-rules
+  - name: Configure supervisor for NFC scanner
+    copy: src=./nfc_scan.conf dest=/etc/supervisor/conf.d/
+  - name: Make sure supervisor knows about NFC scanner
+    supervisorctl: name=nfc_scan state=present
+  - name: Restart NFC scanner service
+    supervisorctl: name=nfc_scan state=started    
+- hosts: broker
+  become: yes
+  tasks:
+  - name: Install mosquitto (MQTT broker)
+    apt: name=mosquitto
+- hosts: motionctl
+  become: yes
+  tasks:
+  - name: Install motion
+    apt: name=motion
+  - name: Create storage directory for motion files
+    file: path=/var/lib/motion/storage state=directory owner=motion group=motion mode="u=rwx,g=rx,o=rx"
+  - name: Copy motion configuration
+    copy: src=./motion.conf dest=/etc/motion/
+  - name: Create the log file for motion and make it writeable
+    file: path=/var/log/motion.log state=touch owner=motion group=motion mode=0644
+  - name: Copy motion configuration for supervisor
+    copy: src=./motion_supervisor.conf dest=/etc/supervisor/conf.d/motion.conf
+  - name: Copy motionctl configuration for supervisor
+    copy: src=./motionctl.conf dest=/etc/supervisor/conf.d/
+  - name: Make sure supervisor knows about motion
+    supervisorctl: name=motion state=present
+  - name: Make sure the things2c user can run supervisorctl
+    lineinfile: "dest=/etc/sudoers line='things2c ALL=(root) NOPASSWD: /usr/bin/supervisorctl'"
+  - name: Restart motionctl service
+    supervisorctl: name=motionctl state=started
+  - name: Install S3 commandline tools
+    apt: name=s3cmd
+  - name: Configure s3cmd
+    copy: src=./s3cfg dest=/var/lib/motion/.s3cfg owner=motion group=motion mode=0600
+- hosts: blinkctl
+  become: yes
+  tasks:
+  - name: Install git
+    apt: name=git
+  - name: Install libusb
+    apt: name=libusb-1.0-0-dev
+  - name: Checkout blink(1)
+    git: repo=https://github.com/todbot/blink1.git dest=/usr/local/src/blink1/
+  - name: Build blink(1)    
+    make: chdir=/usr/local/src/blink1/commandline
+  - name: Install blink(1)
+    make: chdir=/usr/local/src/blink1/commandline target=install
+  - name: Copy udev rules for blink(1)    
+    file: src=/usr/local/src/blink1/linux/51-blink1.rules dest=/etc/udev/rules.d/51-blink1.rules state=link
+  - name: Reload udev rules for blink(1)
+    shell: udevadm control --reload-rules
+  - name: Configure supervisor
+    copy: src=./blinkctl.conf dest=/etc/supervisor/conf.d/
+  - name: Make sure supervisor knows about blinkctl
+    supervisorctl: name=blinkctl state=present
+  - name: Restart blinkctl service
+    supervisorctl: name=blinkctl state=started
