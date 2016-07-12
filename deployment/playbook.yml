@@ -9,7 +9,8 @@
   - name: Make things2c configuration directory
     file: path=/etc/things2c state=directory owner=root group=root mode=0755
   - name: Configure things2c
-    copy: src=./things2c.ini dest=/etc/things2c/ owner=things2c group=motion mode=0640
+    # TODO: consider not making the ini file world readable
+    copy: src=./things2c.ini dest=/etc/things2c/ owner=things2c group=things2c mode=0644
   - name: Install supervisor
     apt: name=supervisor
 - hosts: nfc_scan
@@ -37,6 +38,7 @@
   - name: Install mosquitto (MQTT broker)
     apt: name=mosquitto
 - hosts: motionctl
+  # TODO: Consider adding a cron job to clean up old video files
   become: yes
   tasks:
   - name: Install motion
