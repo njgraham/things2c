@@ -38,17 +38,52 @@
   - name: Install mosquitto (MQTT broker)
     apt: name=mosquitto
 - hosts: motionctl
+  vars:
+    motion_cfg: /etc/motion/motion.conf
+    storage_dir: /var/lib/motion/storage
+    log_file: /var/log/motion.log
+    s3_bucket: s3://some.bucket.name
   # TODO: Consider adding a cron job to clean up old video files
   become: yes
   tasks:
   - name: Install motion
     apt: name=motion
   - name: Create storage directory for motion files
-    file: path=/var/lib/motion/storage state=directory owner=motion group=motion mode="u=rwx,g=rx,o=rx"
-  - name: Copy motion configuration
-    copy: src=./motion.conf dest=/etc/motion/
+    file: path={{ storage_dir }} state=directory owner=motion group=motion mode="u=rwx,g=rwx,o=rx"
+  - name: daemon off
+    replace: dest={{ motion_cfg }} regexp='^(daemon)\s+on(.*)?' replace='\1 off'
+  - name: resolution width
+    replace: dest={{ motion_cfg }} regexp='^(width)\s+[0-9]+(.*)?' replace='\1 640'
+  - name: resolution height
+    replace: dest={{ motion_cfg }} regexp='^(height)\s+[0-9]+(.*)?' replace='\1 480'
+  - name: framerate
+    replace: dest={{ motion_cfg }} regexp='^(framerate)\s+[0-9]+(.*)?' replace='\1 10'
+  - name: pre-capture seconds
+    replace: dest={{ motion_cfg }} regexp='^(pre_capture)\s+[0-9]+(.*)?' replace='\1 5'
+  - name: post-capture seconds
+    replace: dest={{ motion_cfg }} regexp='^(post_capture)\s+[0-9]+(.*)?' replace='\1 5'
+  - name: motion storage directory
+    replace: dest={{ motion_cfg }} regexp='^(target_dir)\s+(.*)?' replace='\1 {{ storage_dir }}'
+  - name: motion log
+    replace: dest={{ motion_cfg }} regexp='^(;)?(\s+)?(logfile)\s+(.*)?' replace='\3 {{ log_file }}'
+  - name: output picture type
+    replace: dest={{ motion_cfg }} regexp='^(output_pictures)\s+(.*)?' replace='\1 best'
+  - name: snapshot filename
+    replace: dest={{ motion_cfg }} regexp='^(snapshot_filename)\s+(.*)?' replace='\1 %Y%m%d%H%M%S-snapshot'
+  - name: picture filename
+    replace: dest={{ motion_cfg }} regexp='^(picture_filename)\s+(.*)?' replace='\1 %Y%m%d%H%M%S-%q'
+  - name: movie filename
+    replace: dest={{ motion_cfg }} regexp='^(movie_filename)\s+(.*)?' replace='\1 %Y%m%d%H%M%S'
+  - name: script for when events start
+    replace: dest={{ motion_cfg }} regexp='^(;)?(\s+)?(on_event_start)\s+(.*)?' replace='\3 things2c notify Motion; things2c publish --topic motion_event_start'
+  - name: script for when events end
+    replace: dest={{ motion_cfg }} regexp='^(;)?(\s+)?(on_event_end)\s+(.*)?' replace='\3 things2c publish --topic motion_event_end'
+  - name: script for when motion is detected
+    replace: dest={{ motion_cfg }} regexp='^(;)?(\s+)?(on_motion_detected)\s+(.*)?' replace='\3 things2c publish --topic motion_detected'
+  - name: script for when movie has ended
+    replace: dest={{ motion_cfg }} regexp='^(;)?(\s+)?(on_movie_end)\s+(.*)?' replace='\3 things2c publish --topic motion_filesync_start; s3cmd sync {{ storage_dir }} {{ s3_bucket }}; things2c publish --topic motion_filesync_end'
   - name: Create the log file for motion and make it writeable
-    file: path=/var/log/motion.log state=touch owner=motion group=motion mode=0644
+    file: path={{ log_file }} state=touch owner=motion group=motion mode=0644
   - name: Copy motion configuration for supervisor
     copy: src=./motion_supervisor.conf dest=/etc/supervisor/conf.d/motion.conf
   - name: Copy motionctl configuration for supervisor
