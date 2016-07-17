@@ -26,3 +26,8 @@ motion_filesync_color=0x00,0x00,0xff
 authorized_id=uuid
 scan_timeout_sec=10
 proc_poll_sleep=5
+
+[filemanager]
+filesync_delay=30
+filesync_dest=s3://
+filestore_path=/var/lib/motion/storage
