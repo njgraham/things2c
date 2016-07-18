@@ -254,7 +254,7 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
                     (cfg.get_topics().motion_status_off,
                      cfg.config.blink.motion_off_color),
                     (cfg.get_topics().motion_detected,
-                     cfg.config.blink.motion_detected_color)
+                     cfg.config.blink.motion_detected_color),
                     (cfg.get_topics().motion_filesync_cancel,
                      cfg.config.blink.motion_filesync_cancel_color)])
         if topic in t2c.keys():
