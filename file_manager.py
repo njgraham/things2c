@@ -118,9 +118,9 @@ class FileManagerQueue(object):
         for p in self._ul_list:
             p.cancel()
 
-    def _join_all(self):
+    def _join_all(self, timeout=None):
         for p in self._ul_list:
-            p.join()
+            p.join(timeout=None)
 
 
 class MockLog(object):
