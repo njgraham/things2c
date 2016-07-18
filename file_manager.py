@@ -120,7 +120,9 @@ class FileManagerQueue(object):
 
     def _join_all(self, timeout=None):
         for p in self._ul_list:
-            p.join(timeout=None)
+            p.join(timeout=timeout)
+            if not p.is_alive():
+                self._ul_list.remove(p)
 
 
 class MockLog(object):
