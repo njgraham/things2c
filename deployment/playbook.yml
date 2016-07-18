@@ -3,7 +3,7 @@
   become: yes
   tasks:
   - name: Add things2c user
-    user: name=things2c createhome=no system=yes shell=/bin/false groups=things2c,plugdev
+    user: name=things2c createhome=yes system=yes shell=/bin/false groups=things2c,plugdev,motion
   - name: Install things2c binary
     copy: src=./things2c dest=/usr/local/bin owner=root group=root mode=0755
   - name: Make things2c configuration directory
@@ -28,6 +28,8 @@
     shell: udevadm control --reload-rules
   - name: Configure supervisor for NFC scanner
     copy: src=./nfc_scan.conf dest=/etc/supervisor/conf.d/
+  - name: Stop NFC scanner service
+    supervisorctl: name=nfc_scan state=stopped
   - name: Make sure supervisor knows about NFC scanner
     supervisorctl: name=nfc_scan state=present
   - name: Restart NFC scanner service
@@ -42,7 +44,7 @@
     motion_cfg: /etc/motion/motion.conf
     storage_dir: /var/lib/motion/storage
     log_file: /var/log/motion.log
-    s3_bucket: s3://some.bucket.name
+    s3_bucket: s3://numbat.video
   # TODO: Consider adding a cron job to clean up old video files
   become: yes
   tasks:
@@ -81,13 +83,19 @@
   - name: script for when motion is detected
     replace: dest={{ motion_cfg }} regexp='^(;)?(\s+)?(on_motion_detected)\s+(.*)?' replace='\3 things2c publish --topic motion_detected'
   - name: script for when movie has ended
-    replace: dest={{ motion_cfg }} regexp='^(;)?(\s+)?(on_movie_end)\s+(.*)?' replace='\3 things2c publish --topic motion_filesync_start; s3cmd sync {{ storage_dir }} {{ s3_bucket }}; things2c publish --topic motion_filesync_end'
+    replace: dest={{ motion_cfg }} regexp='^(;)?(\s+)?(on_movie_end)\s+(.*)?' replace='\3 things2c publish --topic motion_filesync_queue --payload=%f'
+  - name: script for when picture has been saved
+    replace: dest={{ motion_cfg }} regexp='^(;)?(\s+)?(on_picture_save)\s+(.*)?' replace='\3 things2c publish --topic motion_filesync_queue --payload=%f'
   - name: Create the log file for motion and make it writeable
     file: path={{ log_file }} state=touch owner=motion group=motion mode=0644
   - name: Copy motion configuration for supervisor
     copy: src=./motion_supervisor.conf dest=/etc/supervisor/conf.d/motion.conf
   - name: Copy motionctl configuration for supervisor
     copy: src=./motionctl.conf dest=/etc/supervisor/conf.d/
+  - name: Stop motionctl service
+    supervisorctl: name=motionctl state=stopped
+  - name: Stop motion service
+    supervisorctl: name=motion state=stopped
   - name: Make sure supervisor knows about motion
     supervisorctl: name=motion state=present
   - name: Make sure the things2c user can run supervisorctl
@@ -97,7 +105,15 @@
   - name: Install S3 commandline tools
     apt: name=s3cmd
   - name: Configure s3cmd
-    copy: src=./s3cfg dest=/var/lib/motion/.s3cfg owner=motion group=motion mode=0600
+    copy: src=./s3cfg dest=/home/things2c/.s3cfg owner=things2c group=things2c mode=0600
+  - name: Copy filemanager configuration for supervisor
+    copy: src=./filemanager.conf dest=/etc/supervisor/conf.d/
+  - name: Stop filemanager service
+    supervisorctl: name=filemanager state=stopped
+  - name: Make sure supervisor knows about filemanager
+    supervisorctl: name=filemanager state=present
+  - name: Restart filemanager service
+    supervisorctl: name=filemanager state=started
 - hosts: blinkctl
   become: yes
   tasks:
@@ -117,6 +133,8 @@
     shell: udevadm control --reload-rules
   - name: Configure supervisor
     copy: src=./blinkctl.conf dest=/etc/supervisor/conf.d/
+  - name: Stop blinkctl service
+    supervisorctl: name=blinkctl state=stopped
   - name: Make sure supervisor knows about blinkctl
     supervisorctl: name=blinkctl state=present
   - name: Restart blinkctl service
