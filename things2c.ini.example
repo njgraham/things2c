@@ -25,6 +25,7 @@ motion_filesync_cancel_color=0xff,0xff,0xff
 
 [motionctl]
 authorized_id=uuid
+auth_timeout_sec=30
 scan_timeout_sec=10
 proc_poll_sleep=5
 
