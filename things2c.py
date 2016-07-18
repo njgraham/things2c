@@ -166,6 +166,8 @@ def filemanger(cli, cfg, mk_mqtt, mk_fmq, upload, delete, mk_mplog, now):
                                       msg.payload))
         except Empty:
             pass
+        #  Avoid zombies
+        fmq._join_all(timeout=0)
 
 
 def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
@@ -252,7 +254,9 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
                     (cfg.get_topics().motion_status_off,
                      cfg.config.blink.motion_off_color),
                     (cfg.get_topics().motion_detected,
-                     cfg.config.blink.motion_detected_color)])
+                     cfg.config.blink.motion_detected_color)
+                    (cfg.get_topics().motion_filesync_cancel,
+                     cfg.config.blink.motion_filesync_cancel_color)])
         if topic in t2c.keys():
             return t2c[topic]
         elif topic.startswith(cfg.get_topics().motion_filesync):
@@ -392,14 +396,14 @@ if __name__ == '__main__':
             system('sudo /sbin/reboot')
 
         def upload(filename, path, dest):
-            fullpath = ospath.join(path, filename)
+            fullpath = ospath.join(path, ospath.split(filename)[1])
             if ospath.isfile(fullpath):
                 cmd = ('s3cmd sync %(fullpath)s %(dest)s'
                        % dict(fullpath=fullpath, dest=dest))
                 system(cmd)
 
         def delete(filename, path):
-            fullpath = ospath.join(path, filename)
+            fullpath = ospath.join(path, ospath.split(filename)[1])
             if ospath.isfile(fullpath):
                 remove(fullpath)
 
