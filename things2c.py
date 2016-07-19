@@ -7,6 +7,7 @@ Usage:
   things2c [options] notify <notify_text>
   things2c [options] publish
   things2c [options] snoop
+  things2c [options] filemanager
 
 Sub-commands:
   nfc_scan          NFC scan/report
@@ -16,6 +17,7 @@ Sub-commands:
   notify            Send notifications
   publish           Publish topic/payload to MQ
   snoop             Output all MQTT traffic
+  filemanager       Upload/delete video files
 
 Options:
   -h --help         Print usage
@@ -39,7 +41,8 @@ log = logging.getLogger(__name__)
 
 
 def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
-         is_motion_on, motion_on, motion_off, reboot):
+         is_motion_on, motion_on, motion_off, reboot, mk_fmq,
+         upload, delete, mk_mplog):
     if cli.verbose:
         log.setLevel(logging.DEBUG)
 
@@ -73,6 +76,8 @@ def main(cli, cfg, mk_mqtt, mk_notify, mk_nfc, sleep, blink, now,
             mqtt.publish(cfg.get_topics()[cli.topic], payload)
     elif cli.snoop:
         snoop(cli, mk_mqtt)
+    elif cli.filemanager:
+        filemanger(cli, cfg, mk_mqtt, mk_fmq, upload, delete, mk_mplog, now)
     else:
         raise NotImplementedError()
 
@@ -126,6 +131,43 @@ def authorized(candidate, secret, now, window_sec=30):
         if key_hash == candidate:
             return True
     return False
+
+
+def filemanger(cli, cfg, mk_mqtt, mk_fmq, upload, delete, mk_mplog, now):
+    mplog = mk_mplog()
+    if cli.verbose:
+        mplog.setLevel(logging.DEBUG)
+
+    fmq = mk_fmq(log=mplog, mk_mqtt=mk_mqtt)
+
+    q = Queue()
+    mqtt = mk_mqtt(log=log, topics=[cfg.get_topics().motion_filesync_all,
+                                    cfg.get_topics().nfc_scan_all],
+                   msg_queue=q)
+    mqtt.loop_start()
+    while True:
+        try:
+            msg = q.get(timeout=0.5)
+            log.debug('filemanager() got %s, %s' % (msg.topic, msg.payload))
+            if(msg.topic == cfg.get_topics().nfc_scan_data and
+               authorized(msg.payload, cfg.config.motionctl.authorized_id,
+                          now)):
+                log.debug('filemanger() got authorized scan')
+                fmq.cancel()
+            elif msg.topic == cfg.get_topics().motion_filesync_queue:
+                fmq.queue(upload=partial(upload, filename=msg.payload),
+                          delete=partial(delete, filename=msg.payload),
+                          timeout=int(cfg.config.filemanager.filesync_delay),
+                          start_msg=(cfg.get_topics().motion_filesync_start,
+                                     msg.payload),
+                          end_msg=(cfg.get_topics().motion_filesync_end,
+                                   msg.payload),
+                          cancel_msg=(cfg.get_topics().motion_filesync_cancel,
+                                      msg.payload))
+        except Empty:
+            pass
+        #  Avoid zombies
+        fmq._join_all(timeout=0)
 
 
 def motionctl(cli, cfg, mk_mqtt, sleep, now, is_motion_on,
@@ -212,7 +254,9 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
                     (cfg.get_topics().motion_status_off,
                      cfg.config.blink.motion_off_color),
                     (cfg.get_topics().motion_detected,
-                     cfg.config.blink.motion_detected_color)])
+                     cfg.config.blink.motion_detected_color),
+                    (cfg.get_topics().motion_filesync_cancel,
+                     cfg.config.blink.motion_filesync_cancel_color)])
         if topic in t2c.keys():
             return t2c[topic]
         elif topic.startswith(cfg.get_topics().motion_filesync):
@@ -302,15 +346,21 @@ def watchdog(cli, cfg, mk_mqtt, mk_notify):
 
 if __name__ == '__main__':
     def _tcb_():
-        import nfc
+        try:
+            import nfc
+        except:
+            log.warning("Can't import nfc!")
+            nfc = None
         from attrdict import AttrDict
         from datetime import datetime
         from docopt import docopt
-        from os import system
+        from multiprocessing import log_to_stderr
+        from os import system, path as ospath, remove
         from sys import argv
         from time import time, sleep
 
         from config import Config
+        from file_manager import FileManagerQueue
         from httplib import HTTPSConnection
         from mqtt_client import MqttClient
         from nfc_interface import NfcInterface
@@ -345,6 +395,21 @@ if __name__ == '__main__':
         def reboot():
             system('sudo /sbin/reboot')
 
+        def upload(filename, path, dest):
+            fullpath = ospath.join(path, ospath.split(filename)[1])
+            if ospath.isfile(fullpath):
+                cmd = ('s3cmd sync %(fullpath)s %(dest)s'
+                       % dict(fullpath=fullpath, dest=dest))
+                system(cmd)
+
+        def delete(filename, path):
+            fullpath = ospath.join(path, ospath.split(filename)[1])
+            if ospath.isfile(fullpath):
+                remove(fullpath)
+
+        def mk_mplog():
+            return log_to_stderr()
+
         return dict(cli=cli, cfg=cfg,
                     mk_mqtt=partial(MqttClient.make, cfg.config.broker.host,
                                     cfg.config.broker.port),
@@ -356,5 +421,12 @@ if __name__ == '__main__':
                     mk_nfc=partial(NfcInterface.make, nfc=nfc, now=now),
                     sleep=sleep, blink=blink, now=now,
                     is_motion_on=is_motion_on, motion_on=motion_on,
-                    motion_off=motion_off, reboot=reboot)
+                    motion_off=motion_off, reboot=reboot,
+                    mk_fmq=FileManagerQueue.make,
+                    upload=partial(upload,
+                                   path=cfg.config.filemanager.filestore_path,
+                                   dest=cfg.config.filemanager.filesync_dest),
+                    delete=partial(delete,
+                                   path=cfg.config.filemanager.filestore_path),
+                    mk_mplog=mk_mplog)
     main(**_tcb_())
