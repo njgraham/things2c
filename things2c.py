@@ -255,12 +255,14 @@ def blinkctl(cli, cfg, mk_mqtt, blink, sleep, now):
                      cfg.config.blink.motion_off_color),
                     (cfg.get_topics().motion_detected,
                      cfg.config.blink.motion_detected_color),
+                    (cfg.get_topics().motion_filesync_start,
+                     cfg.config.blink.motion_filesync_start_color),
+                    (cfg.get_topics().motion_filesync_end,
+                     cfg.config.blink.motion_filesync_end_color),
                     (cfg.get_topics().motion_filesync_cancel,
                      cfg.config.blink.motion_filesync_cancel_color)])
         if topic in t2c.keys():
             return t2c[topic]
-        elif topic.startswith(cfg.get_topics().motion_filesync):
-            return cfg.config.blink.motion_filesync_color
         return None
 
     while True:
