@@ -1,0 +1,16 @@
+FROM ubuntu
+
+ARG SRCPATH=/usr/local/src/
+ARG T2CPATH=${SRCPATH}things2c/
+ARG T2CZIP=things2c.zip
+ARG NFCPATH=${SRCPATH}nfcpy/
+
+COPY ${T2CZIP} ${SRCPATH}
+
+RUN apt-get update \
+    && apt-get install -y unzip python-setuptools bzr python-dev python-ctypeslib \
+    && easy_install pip && pip install pyinstaller libusb1 pyserial attrdict docopt paho-mqtt \
+    && mkdir -p ${NFCPATH} && cd ${NFCPATH} && bzr branch lp:nfcpy trunk \
+    && unzip ${SRCPATH}${T2CZIP} -d ${SRCPATH} && cd ${T2CPATH} \
+    && pyinstaller -p ${NFCPATH}/trunk --hidden-import nfc.clf.pn533 --onefile ./things2c.py \
+    && cp ./dist/things2c /usr/local/bin
