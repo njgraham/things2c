@@ -1,0 +1,23 @@
+FROM things2c
+
+ARG MOTION_STORAGE=/var/lib/motion/storage
+ARG MOTION_LOG=/var/log/motion.log
+
+COPY update_motion_conf.sh /tmp/
+RUN apt-get install -y motion supervisor sudo \
+    && bash /tmp/update_motion_conf.sh /etc/motion/motion.conf ${MOTION_STORAGE} ${MOTION_LOG}
+
+ADD things2c.ini /etc/things2c/
+COPY ./deployment/motion_supervisor.conf /etc/supervisor/conf.d/
+COPY ./deployment/motionctl.conf /etc/supervisor/conf.d/
+
+RUN useradd -M -s /usr/sbin/nologin things2c \
+    && echo "things2c ALL=(root) NOPASSWD: /usr/bin/supervisorctl" > /etc/sudoers.d/things2c \
+    && mkdir ${MOTION_STORAGE} && chown motion:motion ${MOTION_STORAGE} \
+    && chmod 776 ${MOTION_STORAGE} \
+    && touch ${MOTION_LOG} && chown motion:motion ${MOTION_LOG}
+
+#EXPOSE
+#/usr/bin/supervisord -n -c /etc/supervisor/supervisord.conf
+ENTRYPOINT ["/usr/bin/supervisord", "-n", "-c", "/etc/supervisor/supervisord.conf"]
+
