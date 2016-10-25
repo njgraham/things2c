@@ -8,8 +8,9 @@ sed -i -E "s/^(daemon)\s+on(.*)?/\1 off/g" $motion_cfg
 sed -i -E "s/^(width)\s+[0-9]+(.*)?/\1 640/g" $motion_cfg
 # "resolution height"
 sed -i -E "s/^(height)\s+[0-9]+(.*)?/\1 480/g" $motion_cfg
-# "framerate"
-sed -i -E "s/^(framerate)\s+[0-9]+(.*)?/\1 10/g" $motion_cfg
+# "framerate/stream framerate"
+sed -i -E "s/^(framerate)\s+[0-9]+(.*)?/\1 15/g" $motion_cfg
+sed -i -E "s/^(stream_maxrate)\s+[0-9]+(.*)?/\1 15/g" $motion_cfg
 # "pre-capture seconds"
 sed -i -E "s/^(pre_capture)\s+[0-9]+(.*)?/\1 5/g" $motion_cfg
 # "post-capture seconds"
@@ -36,3 +37,5 @@ sed -i -E "s/^(;)?(\s+)?(on_motion_detected)\s+(.*)?/\3 things2c publish --topic
 sed -i -E "s/^(;)?(\s+)?(on_movie_end)\s+(.*)?/\3 things2c publish --topic motion_filesync_queue --payload=%f/g" $motion_cfg
 # "script for when picture has been saved"
 sed -i -E "s/^(;)?(\s+)?(on_picture_save)\s+(.*)?/\3 things2c publish --topic motion_filesync_queue --payload=%f/g" $motion_cfg
+# "don't restrict streaming to localhost"
+sed -i -E "s/^(stream_localhost)\s+on(.*)?/\1 off/g" $motion_cfg
