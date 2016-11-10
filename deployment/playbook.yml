@@ -4,6 +4,8 @@
   tasks:
   - name: Add motion group
     group: name=motion state=present
+  - name: Add things2c group
+    group: name=things2c state=present
   - name: Add things2c user
     user: name=things2c createhome=yes system=yes shell=/bin/false groups=things2c,plugdev,motion
   - name: Install things2c binary
