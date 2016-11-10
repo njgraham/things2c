@@ -32,5 +32,11 @@ proc_poll_sleep=5
 
 [filemanager]
 filesync_delay=30
-filesync_dest=s3://
 filestore_path=/var/lib/motion/storage
+
+s3_dest=
+
+oc_url=https://owncloud.site.com
+oc_user=ocuser
+oc_password=ocpass
+oc_subdir=

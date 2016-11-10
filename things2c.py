@@ -366,6 +366,7 @@ if __name__ == '__main__':
         from httplib import HTTPSConnection
         from mqtt_client import MqttClient
         from nfc_interface import NfcInterface
+        from owncloud import Client as ocClient
         from pushover_notify import PushoverNotify
         from urllib import urlencode
 
@@ -397,12 +398,20 @@ if __name__ == '__main__':
         def reboot():
             system('sudo /sbin/reboot')
 
-        def upload(filename, path, dest):
+        def upload(filename, path, s3_dest, oc_url, oc_user,
+                   oc_password, oc_subdir):
             fullpath = ospath.join(path, ospath.split(filename)[1])
             if ospath.isfile(fullpath):
-                cmd = ('s3cmd sync %(fullpath)s %(dest)s'
-                       % dict(fullpath=fullpath, dest=dest))
-                system(cmd)
+                if s3_dest:
+                    cmd = ('s3cmd sync %(fullpath)s %(s3_dest)s'
+                           % dict(fullpath=fullpath, s3_dest=s3_dest))
+                    system(cmd)
+                if oc_url:
+                    oc = ocClient(oc_url)
+                    oc.login(oc_user, oc_password)
+                    fn = ospath.split(fullpath)[-1:][0]
+                    oc.put_file(ospath.join(oc_subdir) if oc_subdir else fn,
+                                fullpath)
 
         def delete(filename, path):
             fullpath = ospath.join(path, ospath.split(filename)[1])
@@ -412,6 +421,7 @@ if __name__ == '__main__':
         def mk_mplog():
             return log_to_stderr()
 
+        #import pdb; pdb.set_trace()
         return dict(cli=cli, cfg=cfg,
                     mk_mqtt=partial(MqttClient.make, cfg.config.broker.host,
                                     cfg.config.broker.port),
@@ -425,9 +435,14 @@ if __name__ == '__main__':
                     is_motion_on=is_motion_on, motion_on=motion_on,
                     motion_off=motion_off, reboot=reboot,
                     mk_fmq=FileManagerQueue.make,
-                    upload=partial(upload,
-                                   path=cfg.config.filemanager.filestore_path,
-                                   dest=cfg.config.filemanager.filesync_dest),
+                    upload=partial(
+                        upload,
+                        path=cfg.config.filemanager.filestore_path,
+                        s3_dest=cfg.config.filemanager.s3_dest,
+                        oc_url=cfg.config.filemanager.oc_url,
+                        oc_user=cfg.config.filemanager.oc_user,
+                        oc_password=cfg.config.filemanager.oc_password,
+                        oc_subdir=cfg.config.filemanager.oc_subdir),
                     delete=partial(delete,
                                    path=cfg.config.filemanager.filestore_path),
                     mk_mplog=mk_mplog)

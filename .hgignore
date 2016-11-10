@@ -5,3 +5,5 @@ syntax: glob
 # Lock files used by the Emacs editor.
 .\#*
 *.pyc
+./dev_env/*
+./pyocclient/*
