@@ -8,7 +8,7 @@ RUN apt-get install -y motion supervisor sudo \
     && bash /tmp/update_motion_conf.sh /etc/motion/motion.conf ${MOTION_STORAGE} ${MOTION_LOG}
 
 ADD things2c.ini /etc/things2c/
-COPY ./deployment/motion_supervisor.conf /etc/supervisor/conf.d/
+COPY ./deployment/motion.conf /etc/supervisor/conf.d/
 COPY ./deployment/motionctl.conf /etc/supervisor/conf.d/
 COPY ./deployment/filemanager.conf /etc/supervisor/conf.d/
 
