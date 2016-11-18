@@ -8,6 +8,7 @@ Usage:
   things2c [options] publish
   things2c [options] snoop
   things2c [options] filemanager
+  things2c version
 
 Sub-commands:
   nfc_scan          NFC scan/report
@@ -18,6 +19,7 @@ Sub-commands:
   publish           Publish topic/payload to MQ
   snoop             Output all MQTT traffic
   filemanager       Upload/delete video files
+  version           Display version and exit
 
 Options:
   -h --help         Print usage
@@ -28,6 +30,7 @@ Options:
   -e --encode       Encode payload
 """
 import logging
+from attrdict import AttrDict
 from hashlib import sha1
 from collections import defaultdict
 from datetime import timedelta
@@ -347,18 +350,20 @@ def watchdog(cli, cfg, mk_mqtt, mk_notify):
             notifications = max(notifications - 1, 0)
 
 if __name__ == '__main__':
+    from docopt import docopt
+    from sys import argv
+    cli = AttrDict(dict([(i[0].replace('--', '').strip('<>'), i[1])
+                         for i in docopt(__doc__, argv=argv[1:]).items()]))
+
     def _tcb_():
         try:
             import nfc
         except:
             log.warning("Can't import nfc!")
             nfc = None
-        from attrdict import AttrDict
         from datetime import datetime
-        from docopt import docopt
         from multiprocessing import log_to_stderr
         from os import system, path as ospath, remove
-        from sys import argv
         from time import time, sleep
 
         from config import Config
@@ -369,8 +374,6 @@ if __name__ == '__main__':
         from pushover_notify import PushoverNotify
         from urllib import urlencode
 
-        cli = AttrDict(dict([(i[0].replace('--', '').strip('<>'), i[1])
-                             for i in docopt(__doc__, argv=argv[1:]).items()]))
         with open(cli.config, 'rb') as cfgin:
             cfg = Config(cfgin)
 
@@ -431,4 +434,9 @@ if __name__ == '__main__':
                     delete=partial(delete,
                                    path=cfg.config.filemanager.filestore_path),
                     mk_mplog=mk_mplog)
-    main(**_tcb_())
+
+    if cli.version:
+        from version import VERSION_STRING
+        print VERSION_STRING
+    else:
+        main(**_tcb_())
