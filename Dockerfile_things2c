@@ -10,7 +10,7 @@ COPY ${T2CZIP} ${SRCPATH}
 # Note: Installing pyocclient from source for now to fix put_file() bug - issue #176, to be in 0.3
 RUN apt-get update \
     && apt-get install -y unzip python-setuptools bzr python-dev python-ctypeslib \
-    && apt-get install -y git \
+       git mercurial \
     && easy_install pip \
     && mkdir -p ${NFCPATH} && cd ${NFCPATH} && bzr branch lp:nfcpy trunk \
     && unzip ${SRCPATH}${T2CZIP} -d ${SRCPATH} && cd ${T2CPATH} \
@@ -18,5 +18,6 @@ RUN apt-get update \
     && pip install requests \
     && git clone https://github.com/owncloud/pyocclient.git \
     && cd pyocclient && python setup.py install && cd .. \
+    && sed -i "s/\(VERSION_STRING = \).*/\1\"""`sed -rn 's/node: ([a-z0-9]+)/\1/p' ./.hg_archival.txt | cut -c1-12` `date`\"""/" ./version.py \
     && pyinstaller -p ${NFCPATH}/trunk --hidden-import nfc.clf.pn533 --onefile ./things2c.py \
     && cp ./dist/things2c /usr/local/bin
