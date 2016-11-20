@@ -1,6 +1,5 @@
 motion_cfg=$1
 storage_dir=$2
-log_file=$3
 
 # "daemon off"
 sed -i -E "s/^(daemon)\s+on(.*)?/\1 off/g" $motion_cfg
@@ -18,7 +17,7 @@ sed -i -E "s/^(post_capture)\s+[0-9]+(.*)?/\1 5/g" $motion_cfg
 # "motion storage directory"
 sed -i -E "s@^(target_dir)\s+(.*)?@\1 $storage_dir@g" $motion_cfg
 # "motion log"
-sed -i -E "s@^(;)?(\s+)?(logfile)\s+(.*)?@\3 $log_file@g" $motion_cfg
+sed -i -E "s@^(#)?\s+?logfile\s+.*@#logfile@g" $motion_cfg
 # "output picture type"
 sed -i -E "s/^(output_pictures)\s+(.*)?/\1 best/g" $motion_cfg
 # "snapshot filename"
