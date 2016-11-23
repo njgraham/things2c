@@ -16,7 +16,7 @@ I do **not** claim this is a serious security appliance.  There are various ways
 * [Logitec C270 webcam](http://www.logitech.com/en-us/product/hd-webcam-c270)
 
 ## Software
-[things2c](https://bitbucket.org/njgraham/things2c) ties a bunch of other tools together:
+* [things2c](https://bitbucket.org/njgraham/things2c)
 * [nfcpy - A Python module for near field communication (NFC)](https://nfcpy.readthedocs.org/en/latest/)
 * [blink(1) tools](https://github.com/todbot/blink1)
 * [motion](http://www.lavrsen.dk/foswiki/bin/view/Motion/WebHome)
