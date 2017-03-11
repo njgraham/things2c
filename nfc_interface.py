@@ -72,18 +72,13 @@ class NfcInterface(object):
 
 if __name__ == '__main__':
     def _tcb_():
-        from os import path as ospath
-        from sys import argv, path
-        from time import time
-
-        nfcpy_path = argv[1]
-        path.insert(1, ospath.join(ospath.split(path[0])[0],
-                                   nfcpy_path))
         import nfc
+        from sys import argv
+        from time import time
 
         def now():
             return time()
 
         return dict(mk_nfc=partial(NfcInterface.make, nfc=nfc, now=now),
-                    cmd=argv[2] if argv[2] in ['read', 'write'] else None)
+                    cmd=argv[1] if argv[1] in ['read', 'write'] else None)
     main(**_tcb_())

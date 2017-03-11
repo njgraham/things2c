@@ -68,15 +68,10 @@ I do **not** claim this is a serious security appliance.  There are various ways
       -e --encode       Encode payload
   
 ## Build Notes
-To build a standalone binary using [pyinstaller](http://pythonhosted.org/PyInstaller), refer to [Dockerfile_things2c](Dockerfile_things2c) for x86.  To build for the Raspberry PI, I used the following after installing the needed Python modules ([requirements.txt](requirements.txt)) and checking out [nfcpy](https://nfcpy.readthedocs.io/en/latest/):
+To build a standalone binary using [pyinstaller](http://pythonhosted.org/PyInstaller), refer to [Dockerfile_things2c](Dockerfile_things2c) for x86.  To build for the Raspberry PI, I used the following after installing the needed Python modules ([requirements.txt](requirements.txt)):
 
     :::text
-    $ pyinstaller -p ${nfcpy_path}/trunk --hidden-import nfc.clf.pn533 --onefile ./things2c.py
-
-With early versions of pyinstaller, I had to build the bootloader for ARM.  I took a hints from "[pyinstaller missing linux-32bit-arm](https://www.raspberrypi.org/forums/viewtopic.php?f=28&t=79132)" on raspberrypi.org and "[building the pyinstaller bootloader for linux](https://pythonhosted.org/PyInstaller/bootloader-building.html#building-for-linux)" instructions:
-
-    :::text
-    $ python ./waf configure --no-lsb all
+    $ pyinstaller --hidden-import nfc.clf.pn533 --onefile ./things2c.py
 
 ## Deployment Notes
 I deploy with [Ansible](https://www.ansible.com/) - refer to [playbook.yml](deployment/playbook.yml).

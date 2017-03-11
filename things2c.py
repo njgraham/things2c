@@ -356,16 +356,11 @@ if __name__ == '__main__':
                          for i in docopt(__doc__, argv=argv[1:]).items()]))
 
     def _tcb_():
-        try:
-            import nfc
-        except:
-            log.warning("Can't import nfc!")
-            nfc = None
+        import nfc
         from datetime import datetime
         from multiprocessing import log_to_stderr
         from os import system, path as ospath, remove
         from time import time, sleep
-
         from config import Config
         from file_manager import FileManagerQueue
         from httplib import HTTPSConnection
@@ -424,7 +419,6 @@ if __name__ == '__main__':
         def mk_mplog():
             return log_to_stderr()
 
-        #import pdb; pdb.set_trace()
         return dict(cli=cli, cfg=cfg,
                     mk_mqtt=partial(MqttClient.make, cfg.config.broker.host,
                                     cfg.config.broker.port),
