@@ -68,13 +68,13 @@ I do **not** claim this is a serious security appliance.  There are various ways
       -e --encode       Encode payload
   
 ## Build Notes
-To build a standalone binary using [pyinstaller](http://pythonhosted.org/PyInstaller), refer to [Dockerfile_things2c](Dockerfile_things2c) for x86.  To build for the Raspberry PI, I used the following after installing the needed Python modules ([requirements.txt](requirements.txt)):
+To build a standalone binary using [pyinstaller](http://pythonhosted.org/PyInstaller), refer to [Dockerfile_things2c](https://bitbucket.org/njgraham/things2c/src/default/Dockerfile_things2c) for x86.  To build for the Raspberry PI, I used the following after installing the needed Python modules ([requirements.txt](https://bitbucket.org/njgraham/things2c/src/default/requirements.txt)):
 
     :::text
     $ pyinstaller --hidden-import nfc.clf.pn533 --onefile ./things2c.py
 
 ## Deployment Notes
-I deploy with [Ansible](https://www.ansible.com/) - refer to [playbook.yml](deployment/playbook.yml).
+I deploy with [Ansible](https://www.ansible.com/) - refer to [playbook.yml](https://bitbucket.org/njgraham/things2c/src/default/deployment/playbook.yml).
 
 ## License for [things2c](https://bitbucket.org/njgraham/things2c)
 [MIT](https://opensource.org/licenses/MIT)
