@@ -9,7 +9,7 @@ I do **not** claim this is a serious security appliance.  There are various ways
 
 ## Hardware
 * [Raspberry Pi 2, Model B](https://www.raspberrypi.org/products/raspberry-pi-2-model-b/)
-* [Raspberry Pi Zero](https://www.raspberrypi.org/products/pi-zero/)
+* [Raspberry Pi Zero](https://www.raspberrypi.org/products/raspberry-pi-zero/)
 * [Digital Logic NFC RFID USB Stick DL533N](http://www.d-logic.net/nfc-rfid-reader-sdk/products/nfc-usb-stick-dl533n)
 * [blink(1) indicator light](https://blink1.thingm.com/)
 * [Edimax N150 Wi-Fi Nano USB Adapter](http://www.edimax.com/edimax/merchandise/merchandise_detail/data/edimax/global/wireless_adapters_n150/ew-7811un)
